@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WordMaster - 字體優化版</title>
+    <title>WordMaster - 自動翻回正面版</title>
     <style>
         :root { --primary: #4a90e2; --success: #34c759; --danger: #ff3b30; --bg: #f8f9fa; --card-bg: #ffffff; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; color: #333; margin: 0; box-sizing: border-box; }
@@ -19,32 +19,13 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 340px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
         .opt-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; background: white; cursor: pointer; margin-bottom: 10px; font-size: 1rem; }
-        
-        /* 吐司訊息 */
         #toast { visibility: hidden; background: #333; color: #fff; padding: 12px 24px; border-radius: 50px; position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); opacity: 0; transition: 0.3s; z-index: 2000; }
         #toast.show { visibility: visible; opacity: 1; bottom: 70px; }
         .list-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f9f9f9; border-radius: 10px; margin-bottom: 8px; }
 
-        /* --- 本次加大的字體樣式 --- */
-        #example-display { 
-            background: #f3f4f6; 
-            padding: 18px; 
-            border-radius: 12px; 
-            font-size: 1.15rem; /* 放大例句字體 */
-            line-height: 1.6; /* 增加行距 */
-            margin-bottom: 15px;
-            color: #444;
-            word-wrap: break-word;
-        }
-        #note-display { 
-            color: #777; 
-            font-size: 1.05rem; /* 放大備註字體 */
-            border-top: 1px dashed #ccc; 
-            padding-top: 10px; 
-            font-style: italic;
-            line-height: 1.5;
-        }
-        #trans-display { font-size: 1.6rem; font-weight: bold; } /* 稍微放大中文翻譯 */
+        #example-display { background: #f3f4f6; padding: 18px; border-radius: 12px; font-size: 1.15rem; line-height: 1.6; margin-bottom: 15px; color: #444; word-wrap: break-word; }
+        #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; line-height: 1.5; }
+        #trans-display { font-size: 1.6rem; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -92,7 +73,7 @@
 
     <div id="wordEditModal" class="modal">
         <div class="modal-content">
-            <h3 id="modal-title" style="margin-top:0">單字資訊</h3>
+            <h3 id="modal-title">單字資訊</h3>
             <input list="units-datalist" id="edit-word-unit" placeholder="單元名稱">
             <datalist id="units-datalist"></datalist>
             <input type="text" id="edit-word-eng" placeholder="英文單字">
@@ -160,7 +141,7 @@
                     window.vocabulary = data.vocabulary || [];
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Start", pos: "v.", trans: "開始", ex: "This is a larger example sentence for better reading experience.", note: "Note: You can add extra info here.", starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Start", pos: "v.", trans: "開始", ex: "Welcome!", note: "單字卡會自動翻回正面。", starred: false, myLists: [] }];
                     window.customLists = [];
                     window.saveUserData();
                 }
@@ -187,6 +168,11 @@
             document.getElementById('note-display').innerText = item.note || "";
             document.getElementById('star-btn').innerText = item.starred ? "★" : "☆";
             document.getElementById('star-btn').style.color = item.starred ? "#ffd700" : "#333";
+            
+            // 重要修正：確保顯示狀態與 window.isFlipped 同步
+            dd.style.display = window.isFlipped ? 'block' : 'none';
+            wd.style.display = window.isFlipped ? 'none' : 'block';
+            
             renderFolderBar();
         };
 
@@ -239,11 +225,26 @@
         };
 
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
-        window.flipCard = function() { if(getFilteredList().length === 0) return; window.isFlipped = !window.isFlipped; document.getElementById('detail-display').style.display = window.isFlipped ? 'block' : 'none'; document.getElementById('word-display').style.display = window.isFlipped ? 'none' : 'block'; };
-        window.changeWord = function(n) { const list = getFilteredList(); if(list.length === 0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
+        
+        // --- 翻轉功能 ---
+        window.flipCard = function() { 
+            if(getFilteredList().length === 0) return; 
+            window.isFlipped = !window.isFlipped; 
+            window.updateUI(); 
+        };
+
+        // --- 切換單字：強制翻回正面 ---
+        window.changeWord = function(n) { 
+            const list = getFilteredList(); 
+            if(list.length === 0) return; 
+            window.currentIndex = (window.currentIndex + n + list.length) % list.length; 
+            window.isFlipped = false; // 強制設為正面
+            window.updateUI(); 
+        };
+
         window.toggleStar = function() { const item = getFilteredList()[window.currentIndex % getFilteredList().length]; if (item) { item.starred = !item.starred; window.saveUserData(); } };
-        window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
-        window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.updateUI(); };
+        window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.isFlipped = false; window.updateUI(); };
+        window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.isFlipped = false; window.updateUI(); };
         
         window.openManageModal = function(e) {
             e.stopPropagation();
@@ -309,7 +310,7 @@
         function renderFolderBar() {
             const bar = document.getElementById('custom-folder-bar');
             bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setUnitMode('all'); window.setListMode('none')">全部</button>`;
-            window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="window.setListMode('${l}')">${l}</button>`; });
+            window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="setListMode('${l}')">${l}</button>`; });
         }
 
         window.startQuiz = function() {
@@ -355,7 +356,7 @@
                 area.appendChild(div);
             });
         }
-        window.exitQuiz = function() { document.getElementById('result-interface').classList.add('hidden'); document.getElementById('study-interface').classList.remove('hidden'); window.updateUI(); };
+        window.exitQuiz = function() { document.getElementById('result-interface').classList.add('hidden'); document.getElementById('study-interface').classList.remove('hidden'); window.isFlipped = false; window.updateUI(); };
         function showToast(m) { const t = document.getElementById("toast"); t.innerText = m; t.className = "show"; setTimeout(() => t.className = "", 2500); }
     </script>
 </body>
