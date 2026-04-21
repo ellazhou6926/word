@@ -3,35 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WordMaster - 自動翻回正面版</title>
+    <title>WordMaster - 多詞性同步版</title>
     <style>
         :root { --primary: #4a90e2; --success: #34c759; --danger: #ff3b30; --bg: #f8f9fa; --card-bg: #ffffff; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; color: #333; margin: 0; box-sizing: border-box; }
         .hidden { display: none !important; }
         #login-interface, #study-interface, #quiz-interface, #result-interface { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; text-align: center; }
-        .card { width: 100%; min-height: 300px; background: var(--card-bg); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; position: relative; box-sizing: border-box; cursor: pointer; }
+        .card { width: 100%; min-height: 320px; background: var(--card-bg); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; position: relative; box-sizing: border-box; cursor: pointer; }
         
         input, select, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 12px; font-size: 1.1rem; font-family: inherit; }
         .primary-btn { padding: 12px 30px; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
         .btn-circle { width: 60px; height: 60px; border-radius: 50%; border: none; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; }
         .chip { padding: 8px 18px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; }
         .chip.active { background: var(--primary); color: white; }
+        
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
-        .modal-content { background: white; padding: 25px; border-radius: 24px; width: 340px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
-        .opt-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; background: white; cursor: pointer; margin-bottom: 10px; font-size: 1rem; }
-        #toast { visibility: hidden; background: #333; color: #fff; padding: 12px 24px; border-radius: 50px; position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); opacity: 0; transition: 0.3s; z-index: 2000; }
-        #toast.show { visibility: visible; opacity: 1; bottom: 70px; }
-        .list-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f9f9f9; border-radius: 10px; margin-bottom: 8px; }
-
-        #example-display { background: #f3f4f6; padding: 18px; border-radius: 12px; font-size: 1.15rem; line-height: 1.6; margin-bottom: 15px; color: #444; word-wrap: break-word; }
-        #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; line-height: 1.5; }
-        #trans-display { font-size: 1.6rem; font-weight: bold; }
+        .modal-content { background: white; padding: 25px; border-radius: 24px; width: 360px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
+        
+        /* 多詞性編輯區塊 */
+        .pos-entry { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--primary); position: relative; }
+        .remove-pos-btn { position: absolute; top: 5px; right: 5px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; }
+        
+        #example-display { background: #f3f4f6; padding: 18px; border-radius: 12px; font-size: 1.15rem; line-height: 1.6; margin-bottom: 15px; color: #444; width: 100%; box-sizing: border-box; }
+        #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; }
+        
+        .pos-list-item { font-size: 1.3rem; margin-bottom: 8px; text-align: left; width: 100%; }
+        .pos-tag { color: var(--primary); font-weight: bold; margin-right: 8px; font-size: 1.1rem; }
     </style>
 </head>
 <body>
 
     <div id="login-interface">
-        <h2 style="color: var(--primary);">WordMaster Cloud</h2>
+        <h2 style="color: var(--primary);">WordMaster Multi</h2>
         <input type="text" id="user-name-input" placeholder="輸入名字開始同步">
         <button class="primary-btn" onclick="window.login()">登入並同步</button>
     </div>
@@ -45,15 +48,17 @@
             <select id="unit-nav-selector" onchange="window.setUnitMode(this.value)" style="margin-bottom:0; flex-grow: 1;"></select>
             <button onclick="window.openAddModal()" style="padding:0 15px; border-radius:10px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:bold;">+</button>
         </div>
+        
         <div class="card" onclick="window.flipCard()">
             <div style="position: absolute; top: 20px; right: 20px; font-size: 24px; color: #ccc;" onclick="window.openManageModal(event)">⋯</div>
-            <h1 id="word-display" style="font-size: 2.8rem;">載入中...</h1>
-            <div id="detail-display" style="display: none; text-align: center; width: 100%;">
-                <h2 style="margin-top:0;"><small id="pos-display" style="color:var(--primary); font-size: 1.1rem;"></small> <span id="trans-display"></span></h2>
+            <h1 id="word-display" style="font-size: 3rem;">載入中...</h1>
+            <div id="detail-display" style="display: none; width: 100%;">
+                <div id="multi-pos-area" style="margin-bottom: 15px;"></div>
                 <p id="example-display"></p>
                 <div id="note-display"></div>
             </div>
         </div>
+
         <div style="display: flex; gap: 20px; margin-top: 20px;">
             <button class="btn-circle" onclick="window.changeWord(-1)">←</button>
             <button id="star-btn" class="btn-circle" onclick="window.toggleStar()">☆</button>
@@ -67,6 +72,7 @@
         <div style="margin-bottom: 15px; font-weight: bold; color: var(--primary);">測驗：<span id="quiz-progress"></span></div>
         <div class="card" style="cursor: default;"><div id="quiz-question-text" style="font-size: 1.4rem; font-weight: bold; margin-bottom: 15px;"></div><div id="quiz-options-area" style="width:100%"></div></div>
     </div>
+
     <div id="result-interface" class="hidden">
         <h2>測驗結束</h2><p id="score-text" style="font-weight:bold;"></p><div id="wrong-words-list" style="width:100%;"></div><button class="primary-btn" onclick="window.exitQuiz()">返回學習</button>
     </div>
@@ -77,12 +83,16 @@
             <input list="units-datalist" id="edit-word-unit" placeholder="單元名稱">
             <datalist id="units-datalist"></datalist>
             <input type="text" id="edit-word-eng" placeholder="英文單字">
-            <select id="edit-word-pos"><option value="n.">n.</option><option value="v.">v.</option><option value="adj.">adj.</option><option value="adv.">adv.</option><option value="phr.">phr.</option></select>
-            <input type="text" id="edit-word-chi" placeholder="翻譯">
+            
+            <div id="pos-container">
+                </div>
+            <button class="primary-btn" style="background:#eee; color:#333; margin-bottom:15px;" onclick="window.addPosField('', 'n.')">+ 新增詞性與翻譯</button>
+
             <textarea id="edit-word-ex" placeholder="例句" rows="3"></textarea>
             <textarea id="edit-word-note" placeholder="備註" rows="2"></textarea>
+            
             <button class="primary-btn" style="background:var(--success)" onclick="window.saveWordChange()">儲存雲端</button>
-            <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除</button>
+            <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除單字</button>
             <button class="primary-btn" style="background:#888; margin-top:10px;" onclick="window.closeEditModal()">取消</button>
         </div>
     </div>
@@ -97,8 +107,6 @@
             <button class="primary-btn" style="background:#888; margin-top:10px;" onclick="window.closeManageModal()">關閉</button>
         </div>
     </div>
-
-    <div id="toast"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -125,7 +133,6 @@
         window.currentIndex = 0;
         window.isFlipped = false;
         let editingId = null;
-        let quizQueue = [], quizIdx = 0, wrongWords = [];
 
         window.login = function() {
             const name = document.getElementById('user-name-input').value.trim();
@@ -134,15 +141,13 @@
             document.getElementById('login-interface').classList.add('hidden');
             document.getElementById('study-interface').classList.remove('hidden');
             document.getElementById('user-display').innerText = "👤 " + window.currentUser;
-            const userRef = ref(db, 'users/' + window.currentUser);
-            onValue(userRef, (snapshot) => {
-                const data = snapshot.val();
+            onValue(ref(db, 'users/' + window.currentUser), (snap) => {
+                const data = snap.val();
                 if (data) {
                     window.vocabulary = data.vocabulary || [];
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Start", pos: "v.", trans: "開始", ex: "Welcome!", note: "單字卡會自動翻回正面。", starred: false, myLists: [] }];
-                    window.customLists = [];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Work", posGroups: [{pos: "v.", trans: "工作"}, {pos: "n.", trans: "職業"}], ex: "I work hard every day.", note: "這是多詞性範例", starred: false, myLists: [] }];
                     window.saveUserData();
                 }
                 updateUnitSelector();
@@ -162,51 +167,76 @@
             if (list.length === 0) { wd.innerText = "目前無單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
             const item = list[window.currentIndex % list.length];
             wd.innerText = item.word;
-            document.getElementById('trans-display').innerText = item.trans;
-            document.getElementById('pos-display').innerText = `(${item.pos || 'n.'})`;
+            
+            // 多詞性顯示邏輯
+            const posArea = document.getElementById('multi-pos-area');
+            posArea.innerHTML = "";
+            item.posGroups.forEach(g => {
+                posArea.innerHTML += `<div class="pos-list-item"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>`;
+            });
+
             document.getElementById('example-display').innerText = item.ex || "";
             document.getElementById('note-display').innerText = item.note || "";
             document.getElementById('star-btn').innerText = item.starred ? "★" : "☆";
             document.getElementById('star-btn').style.color = item.starred ? "#ffd700" : "#333";
             
-            // 重要修正：確保顯示狀態與 window.isFlipped 同步
             dd.style.display = window.isFlipped ? 'block' : 'none';
             wd.style.display = window.isFlipped ? 'none' : 'block';
-            
             renderFolderBar();
         };
 
-        function getFilteredList() {
-            let list = window.vocabulary;
-            if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit);
-            if (window.currentCustomList !== "none") list = list.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
-            return list;
-        }
+        // --- 編輯功能：動態欄位 ---
+        window.addPosField = function(trans = "", pos = "n.") {
+            const container = document.getElementById('pos-container');
+            const div = document.createElement('div');
+            div.className = 'pos-entry';
+            div.innerHTML = `
+                <button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button>
+                <select class="edit-pos-select">
+                    <option value="n." ${pos==='n.'?'selected':''}>n.</option>
+                    <option value="v." ${pos==='v.'?'selected':''}>v.</option>
+                    <option value="adj." ${pos==='adj.'?'selected':''}>adj.</option>
+                    <option value="adv." ${pos==='adv.'?'selected':''}>adv.</option>
+                    <option value="phr." ${pos==='phr.'?'selected':''}>phr.</option>
+                </select>
+                <input type="text" class="edit-trans-input" placeholder="中文翻譯" value="${trans}">
+            `;
+            container.appendChild(div);
+        };
 
         window.openAddModal = function() {
             editingId = null;
             document.getElementById('modal-title').innerText = "新增單字";
             document.getElementById('delete-btn').style.display = 'none';
+            document.getElementById('pos-container').innerHTML = "";
             document.getElementById('edit-word-unit').value = window.currentUnit === "all" ? "" : window.currentUnit;
             document.getElementById('edit-word-eng').value = "";
-            document.getElementById('edit-word-chi').value = "";
             document.getElementById('edit-word-ex').value = "";
             document.getElementById('edit-word-note').value = "";
-            document.getElementById('edit-word-pos').value = "n.";
+            window.addPosField(); // 預設給一個欄位
             document.getElementById('wordEditModal').style.display = 'flex';
         };
 
         window.saveWordChange = function() {
-            const unit = document.getElementById('edit-word-unit').value || "未分類";
             const word = document.getElementById('edit-word-eng').value.trim();
-            const trans = document.getElementById('edit-word-chi').value.trim();
-            if (!word || !trans) return alert("請輸入單字與翻譯");
+            if (!word) return alert("請輸入單字");
+            
+            const posEntries = document.querySelectorAll('.pos-entry');
+            const posGroups = [];
+            posEntries.forEach(ent => {
+                const p = ent.querySelector('.edit-pos-select').value;
+                const t = ent.querySelector('.edit-trans-input').value.trim();
+                if (t) posGroups.push({ pos: p, trans: t });
+            });
+            if (posGroups.length === 0) return alert("請至少輸入一個翻譯");
+
             const data = {
-                unit, word, trans,
-                pos: document.getElementById('edit-word-pos').value,
+                unit: document.getElementById('edit-word-unit').value || "未分類",
+                word, posGroups,
                 ex: document.getElementById('edit-word-ex').value.trim(),
                 note: document.getElementById('edit-word-note').value.trim()
             };
+
             if (editingId) {
                 const idx = window.vocabulary.findIndex(v => v.id === editingId);
                 window.vocabulary[idx] = { ...window.vocabulary[idx], ...data };
@@ -217,41 +247,44 @@
             window.closeEditModal();
         };
 
-        window.deleteWord = function() {
-            if (!confirm("確定刪除？")) return;
-            window.vocabulary = window.vocabulary.filter(v => v.id !== editingId);
-            window.saveUserData();
-            window.closeEditModal();
+        window.openEditFromManage = function() {
+            const item = getFilteredList()[window.currentIndex % getFilteredList().length];
+            editingId = item.id;
+            document.getElementById('modal-title').innerText = "編輯單字";
+            document.getElementById('delete-btn').style.display = 'block';
+            document.getElementById('edit-word-unit').value = item.unit;
+            document.getElementById('edit-word-eng').value = item.word;
+            document.getElementById('edit-word-ex').value = item.ex || "";
+            document.getElementById('edit-word-note').value = item.note || "";
+            
+            const container = document.getElementById('pos-container');
+            container.innerHTML = "";
+            item.posGroups.forEach(g => window.addPosField(g.trans, g.pos));
+            
+            window.closeManageModal();
+            document.getElementById('wordEditModal').style.display = 'flex';
         };
 
+        // --- 基礎邏輯 (不變) ---
+        function getFilteredList() {
+            let list = window.vocabulary;
+            if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit);
+            if (window.currentCustomList !== "none") list = list.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
+            return list;
+        }
+        window.deleteWord = function() { if (confirm("刪除？")) { window.vocabulary = window.vocabulary.filter(v => v.id !== editingId); window.saveUserData(); window.closeEditModal(); } };
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
-        
-        // --- 翻轉功能 ---
-        window.flipCard = function() { 
-            if(getFilteredList().length === 0) return; 
-            window.isFlipped = !window.isFlipped; 
-            window.updateUI(); 
-        };
-
-        // --- 切換單字：強制翻回正面 ---
-        window.changeWord = function(n) { 
-            const list = getFilteredList(); 
-            if(list.length === 0) return; 
-            window.currentIndex = (window.currentIndex + n + list.length) % list.length; 
-            window.isFlipped = false; // 強制設為正面
-            window.updateUI(); 
-        };
-
+        window.flipCard = function() { if(getFilteredList().length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
+        window.changeWord = function(n) { const list = getFilteredList(); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
         window.toggleStar = function() { const item = getFilteredList()[window.currentIndex % getFilteredList().length]; if (item) { item.starred = !item.starred; window.saveUserData(); } };
         window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.isFlipped = false; window.updateUI(); };
         window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.isFlipped = false; window.updateUI(); };
-        
         window.openManageModal = function(e) {
             e.stopPropagation();
             const area = document.getElementById('existing-lists-area'); area.innerHTML = "";
             window.customLists.forEach(name => {
                 const div = document.createElement('div'); div.className = 'list-item-row';
-                div.innerHTML = `<span>+ ${name}</span><button onclick="window.deleteList('${name}')" style="color:red; border:none; background:none; cursor:pointer;">🗑️</button>`;
+                div.innerHTML = `<span>+ ${name}</span><button onclick="window.deleteList('${name}')" style="color:red; border:none; background:none;">🗑️</button>`;
                 div.querySelector('span').onclick = () => {
                     const item = getFilteredList()[window.currentIndex % getFilteredList().length];
                     if (item && !item.myLists.includes(name)) { if(!item.myLists) item.myLists=[]; item.myLists.push(name); window.saveUserData(); }
@@ -260,42 +293,9 @@
             });
             document.getElementById('manageModal').style.display = 'flex';
         };
-
-        window.deleteList = function(name) {
-            window.customLists = window.customLists.filter(l => l !== name);
-            window.vocabulary.forEach(v => { if(v.myLists) v.myLists = v.myLists.filter(l => l !== name); });
-            window.saveUserData();
-            window.openManageModal({stopPropagation:()=>{}});
-        };
-
-        window.handleCreateAndAdd = function() {
-            const n = document.getElementById('new-list-name').value.trim();
-            if (n) {
-                if (!window.customLists.includes(n)) window.customLists.push(n);
-                const item = getFilteredList()[window.currentIndex % getFilteredList().length];
-                if (item) { if(!item.myLists) item.myLists=[]; if(!item.myLists.includes(n)) item.myLists.push(n); }
-                window.saveUserData();
-                document.getElementById('new-list-name').value = "";
-                window.closeManageModal();
-            }
-        };
-
+        window.deleteList = function(name) { window.customLists = window.customLists.filter(l => l !== name); window.vocabulary.forEach(v => { if(v.myLists) v.myLists = v.myLists.filter(l => l !== name); }); window.saveUserData(); window.openManageModal({stopPropagation:()=>{}}); };
+        window.handleCreateAndAdd = function() { const n = document.getElementById('new-list-name').value.trim(); if (n) { if (!window.customLists.includes(n)) window.customLists.push(n); const item = getFilteredList()[window.currentIndex % getFilteredList().length]; if (item) { if(!item.myLists) item.myLists=[]; if(!item.myLists.includes(n)) item.myLists.push(n); } window.saveUserData(); document.getElementById('new-list-name').value = ""; window.closeManageModal(); } };
         window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
-        window.openEditFromManage = function() {
-            const item = getFilteredList()[window.currentIndex % getFilteredList().length];
-            if(!item) return;
-            editingId = item.id;
-            document.getElementById('modal-title').innerText = "編輯單字";
-            document.getElementById('delete-btn').style.display = 'block';
-            document.getElementById('edit-word-unit').value = item.unit;
-            document.getElementById('edit-word-eng').value = item.word;
-            document.getElementById('edit-word-chi').value = item.trans;
-            document.getElementById('edit-word-pos').value = item.pos || "n.";
-            document.getElementById('edit-word-ex').value = item.ex || "";
-            document.getElementById('edit-word-note').value = item.note || "";
-            window.closeManageModal();
-            document.getElementById('wordEditModal').style.display = 'flex';
-        };
 
         function updateUnitSelector() {
             const s = document.getElementById('unit-nav-selector');
@@ -306,16 +306,16 @@
             const dl = document.getElementById('units-datalist'); dl.innerHTML = "";
             units.forEach(u => dl.innerHTML += `<option value="${u}">`);
         }
-
         function renderFolderBar() {
             const bar = document.getElementById('custom-folder-bar');
             bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setUnitMode('all'); window.setListMode('none')">全部</button>`;
             window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="setListMode('${l}')">${l}</button>`; });
         }
 
+        // --- 測驗系統 (多詞性相容) ---
         window.startQuiz = function() {
             quizQueue = [...getFilteredList()];
-            if (quizQueue.length < 2) return alert("至少需要 2 個單字才能測驗");
+            if (quizQueue.length < 2) return alert("單字量不足");
             quizQueue.sort(() => Math.random() - 0.5);
             quizIdx = 0; wrongWords = [];
             document.getElementById('study-interface').classList.add('hidden');
@@ -328,13 +328,23 @@
             document.getElementById('quiz-progress').innerText = `${quizIdx+1}/${quizQueue.length}`;
             const area = document.getElementById('quiz-options-area'); area.innerHTML = "";
             const isEng = Math.random() > 0.5;
-            document.getElementById('quiz-question-text').innerText = isEng ? item.word : `(${item.pos || 'n.'}) ${item.trans}`;
-            const correctText = isEng ? `(${item.pos || 'n.'}) ${item.trans}` : item.word;
+            
+            // 問題顯示
+            if (isEng) {
+                document.getElementById('quiz-question-text').innerText = item.word;
+            } else {
+                const randomPos = item.posGroups[Math.floor(Math.random() * item.posGroups.length)];
+                document.getElementById('quiz-question-text').innerText = `(${randomPos.pos}) ${randomPos.trans}`;
+            }
+
+            // 正確答案格式 (英文則顯示第一個翻譯，中文則顯示單字)
+            const correctText = isEng ? `(${item.posGroups[0].pos}) ${item.posGroups[0].trans}` : item.word;
             let opts = [correctText];
             let pool = window.vocabulary.filter(v => v.id !== item.id);
             pool.sort(() => Math.random() - 0.5);
-            opts.push(...pool.slice(0, 3).map(v => isEng ? `(${v.pos || 'n.'}) ${v.trans}` : v.word));
+            opts.push(...pool.slice(0, 3).map(v => isEng ? `(${v.posGroups[0].pos}) ${v.posGroups[0].trans}` : v.word));
             opts.sort(() => Math.random() - 0.5);
+
             opts.forEach(o => {
                 const b = document.createElement('button'); b.className = 'opt-btn'; b.innerText = o;
                 b.onclick = () => {
@@ -348,16 +358,15 @@
         function showResults() {
             document.getElementById('quiz-interface').classList.add('hidden');
             document.getElementById('result-interface').classList.remove('hidden');
-            document.getElementById('score-text').innerText = `分數：${quizQueue.length - wrongWords.length}/${quizQueue.length}`;
+            document.getElementById('score-text').innerText = `答錯：${wrongWords.length} 題`;
             const area = document.getElementById('wrong-words-list'); area.innerHTML = "";
             wrongWords.forEach(w => {
                 const div = document.createElement('div'); div.className = 'list-item-row';
-                div.innerHTML = `<span><strong>${w.word}</strong> - (${w.pos || 'n.'}) ${w.trans}</span>`;
+                div.innerHTML = `<span><strong>${w.word}</strong> - ${w.posGroups[0].trans}</span>`;
                 area.appendChild(div);
             });
         }
-        window.exitQuiz = function() { document.getElementById('result-interface').classList.add('hidden'); document.getElementById('study-interface').classList.remove('hidden'); window.isFlipped = false; window.updateUI(); };
-        function showToast(m) { const t = document.getElementById("toast"); t.innerText = m; t.className = "show"; setTimeout(() => t.className = "", 2500); }
+        window.exitQuiz = function() { document.getElementById('result-interface').classList.add('hidden'); document.getElementById('study-interface').classList.remove('hidden'); window.updateUI(); };
     </script>
 </body>
 </html>
