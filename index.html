@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WordMaster - 雲端清空優化版</title>
+    <title>WordMaster - 詞性置前版</title>
     <style>
         :root { --primary: #4a90e2; --success: #34c759; --danger: #ff3b30; --bg: #f8f9fa; --card-bg: #ffffff; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; color: #333; margin: 0; box-sizing: border-box; }
@@ -44,7 +44,7 @@
             <div style="position: absolute; top: 20px; right: 20px; font-size: 24px; color: #ccc;" onclick="window.openManageModal(event)">⋯</div>
             <h1 id="word-display">載入中...</h1>
             <div id="detail-display" style="display: none; text-align: center; width: 100%;">
-                <h2 style="margin-top:0;"><span id="trans-display"></span> <small id="pos-display" style="color:var(--primary); font-size: 0.9rem;"></small></h2>
+                <h2 style="margin-top:0;"><small id="pos-display" style="color:var(--primary); font-size: 1rem;"></small> <span id="trans-display"></span></h2>
                 <p id="example-display" style="background: #f3f4f6; padding: 15px; border-radius: 12px; font-size: 0.9rem;"></p>
                 <div id="note-display" style="color: #666; font-size: 0.8rem; border-top: 1px dashed #ddd; padding-top: 8px; font-style: italic;"></div>
             </div>
@@ -71,11 +71,11 @@
             <h3 id="modal-title">單字資訊</h3>
             <input list="units-datalist" id="edit-word-unit" placeholder="單元名稱">
             <datalist id="units-datalist"></datalist>
-            <input type="text" id="edit-word-eng" placeholder="英文單字 (必填)">
+            <input type="text" id="edit-word-eng" placeholder="英文單字">
             <select id="edit-word-pos"><option value="n.">n.</option><option value="v.">v.</option><option value="adj.">adj.</option><option value="adv.">adv.</option><option value="phr.">phr.</option></select>
-            <input type="text" id="edit-word-chi" placeholder="中文翻譯 (必填)">
-            <textarea id="edit-word-ex" placeholder="例句 (選填)" rows="2"></textarea>
-            <textarea id="edit-word-note" placeholder="備註/補充 (選填)" rows="2"></textarea>
+            <input type="text" id="edit-word-chi" placeholder="翻譯">
+            <textarea id="edit-word-ex" placeholder="例句" rows="2"></textarea>
+            <textarea id="edit-word-note" placeholder="備註" rows="2"></textarea>
             <button class="primary-btn" style="background:var(--success)" onclick="window.saveWordChange()">儲存雲端</button>
             <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除</button>
             <button class="primary-btn" style="background:#888; margin-top:10px;" onclick="window.closeEditModal()">取消</button>
@@ -136,7 +136,7 @@
                     window.vocabulary = data.vocabulary || [];
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Example", pos: "n.", trans: "範例", ex: "Welcome!", note: "點擊右上角 + 開始新增", starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Start", pos: "v.", trans: "開始", ex: "Welcome!", starred: false, myLists: [] }];
                     window.customLists = [];
                     window.saveUserData();
                 }
@@ -158,8 +158,9 @@
             const item = list[window.currentIndex % list.length];
             wd.innerText = item.word;
             document.getElementById('trans-display').innerText = item.trans;
+            // 修改點：詞性加上括號並放在翻譯前
             document.getElementById('pos-display').innerText = `(${item.pos || 'n.'})`;
-            document.getElementById('example-display').innerText = item.ex || "";
+            document.getElementById('example-display').innerText = item.ex || "(無例句)";
             document.getElementById('note-display').innerText = item.note || "";
             document.getElementById('star-btn').innerText = item.starred ? "★" : "☆";
             document.getElementById('star-btn').style.color = item.starred ? "#ffd700" : "#333";
@@ -173,20 +174,16 @@
             return list;
         }
 
-        // --- 核心優化：開啟新增視窗時清空欄位 ---
         window.openAddModal = function() {
             editingId = null;
             document.getElementById('modal-title').innerText = "新增單字";
             document.getElementById('delete-btn').style.display = 'none';
-            
-            // 保留當前單元名稱，但清空單字內容
             document.getElementById('edit-word-unit').value = window.currentUnit === "all" ? "" : window.currentUnit;
             document.getElementById('edit-word-eng').value = "";
             document.getElementById('edit-word-chi').value = "";
             document.getElementById('edit-word-ex').value = "";
             document.getElementById('edit-word-note').value = "";
             document.getElementById('edit-word-pos').value = "n.";
-            
             document.getElementById('wordEditModal').style.display = 'flex';
         };
 
@@ -194,15 +191,13 @@
             const unit = document.getElementById('edit-word-unit').value || "未分類";
             const word = document.getElementById('edit-word-eng').value.trim();
             const trans = document.getElementById('edit-word-chi').value.trim();
-            if (!word || !trans) return alert("請填寫單字與翻譯");
-
+            if (!word || !trans) return alert("請輸入單字與翻譯");
             const data = {
                 unit, word, trans,
                 pos: document.getElementById('edit-word-pos').value,
                 ex: document.getElementById('edit-word-ex').value.trim(),
                 note: document.getElementById('edit-word-note').value.trim()
             };
-
             if (editingId) {
                 const idx = window.vocabulary.findIndex(v => v.id === editingId);
                 window.vocabulary[idx] = { ...window.vocabulary[idx], ...data };
@@ -309,12 +304,15 @@
             document.getElementById('quiz-progress').innerText = `${quizIdx+1}/${quizQueue.length}`;
             const area = document.getElementById('quiz-options-area'); area.innerHTML = "";
             const isEng = Math.random() > 0.5;
-            document.getElementById('quiz-question-text').innerText = isEng ? item.word : `${item.trans} (${item.pos || 'n.'})`;
-            const correctText = isEng ? `${item.trans} (${item.pos || 'n.'})` : item.word;
+            // 修改點：測驗問題顯示方式 (詞性) + 翻譯
+            document.getElementById('quiz-question-text').innerText = isEng ? item.word : `(${item.pos || 'n.'}) ${item.trans}`;
+            // 修改點：測驗正確答案的格式
+            const correctText = isEng ? `(${item.pos || 'n.'}) ${item.trans}` : item.word;
             let opts = [correctText];
             let pool = window.vocabulary.filter(v => v.id !== item.id);
             pool.sort(() => Math.random() - 0.5);
-            opts.push(...pool.slice(0, 3).map(v => isEng ? `${v.trans} (${v.pos || 'n.'})` : v.word));
+            // 修改點：選項產生的格式
+            opts.push(...pool.slice(0, 3).map(v => isEng ? `(${v.pos || 'n.'}) ${v.trans}` : v.word));
             opts.sort(() => Math.random() - 0.5);
             opts.forEach(o => {
                 const b = document.createElement('button'); b.className = 'opt-btn'; b.innerText = o;
@@ -333,11 +331,12 @@
             const area = document.getElementById('wrong-words-list'); area.innerHTML = "";
             wrongWords.forEach(w => {
                 const div = document.createElement('div'); div.className = 'list-item-row';
-                div.innerHTML = `<span><strong>${w.word}</strong> - ${w.trans}</span>`;
+                div.innerHTML = `<span><strong>${w.word}</strong> - (${w.pos || 'n.'}) ${w.trans}</span>`;
                 area.appendChild(div);
             });
         }
         window.exitQuiz = function() { document.getElementById('result-interface').classList.add('hidden'); document.getElementById('study-interface').classList.remove('hidden'); window.updateUI(); };
+        function showToast(m) { const t = document.getElementById("toast"); t.innerText = m; t.className = "show"; setTimeout(() => t.className = "", 2500); }
     </script>
 </body>
 </html>
