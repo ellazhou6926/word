@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WordMaster - 詞性專屬例句版</title>
+    <title>WordMaster</title>
     <style>
         :root { --primary: #4a90e2; --success: #34c759; --danger: #ff3b30; --bg: #f8f9fa; --card-bg: #ffffff; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; color: #333; margin: 0; box-sizing: border-box; }
@@ -18,11 +18,9 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 380px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
         
-        /* 多詞性編輯區塊 */
         .pos-entry { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary); position: relative; }
         .remove-pos-btn { position: absolute; top: 5px; right: 5px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; font-size: 1.2rem; }
         
-        /* 字卡背面顯示樣式 */
         .pos-group-display { text-align: left; width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         .pos-header { font-size: 1.3rem; margin-bottom: 8px; font-weight: bold; }
         .pos-tag { color: var(--primary); margin-right: 8px; }
@@ -36,7 +34,7 @@
 <body>
 
     <div id="login-interface">
-        <h2 style="color: var(--primary);">WordMaster Multi-Ex</h2>
+        <h2 style="color: var(--primary);">WordMaster</h2>
         <input type="text" id="user-name-input" placeholder="輸入名字開始同步">
         <button class="primary-btn" onclick="window.login()">登入並同步</button>
     </div>
@@ -73,15 +71,15 @@
 
     <div id="wordEditModal" class="modal">
         <div class="modal-content">
-            <h3 id="modal-title" style="margin-top:0">單字資訊</h3>
+            <h3 id="modal-title" style="margin-top:0">WordMaster</h3>
             <input list="units-datalist" id="edit-word-unit" placeholder="單元名稱">
             <datalist id="units-datalist"></datalist>
             <input type="text" id="edit-word-eng" placeholder="英文單字">
             
             <div id="pos-container"></div>
-            <button class="primary-btn" style="background:#eee; color:#333; margin-bottom:15px;" onclick="window.addPosField()">+ 新增詞性、翻譯與例句</button>
+            <button class="primary-btn" style="background:#eee; color:#333; margin-bottom:15px;" onclick="window.addPosField()">+ 新增詞性與翻譯</button>
 
-            <textarea id="edit-word-note" placeholder="備註 (整個單字的補充)" rows="2"></textarea>
+            <textarea id="edit-word-note" placeholder="備註" rows="2"></textarea>
             
             <button class="primary-btn" style="background:var(--success)" onclick="window.saveWordChange()">儲存雲端</button>
             <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除單字</button>
@@ -91,7 +89,7 @@
 
     <div id="manageModal" class="modal">
         <div class="modal-content">
-            <h3 style="margin-top:0">管理單字</h3>
+            <h3 style="margin-top:0">WordMaster</h3>
             <button class="primary-btn" style="background:#f39c12; margin-bottom:15px;" onclick="window.openEditFromManage()">✏️ 編輯內容</button>
             <div id="existing-lists-area" style="max-height:150px; overflow-y:auto; margin-bottom:10px;"></div>
             <input type="text" id="new-list-name" placeholder="新清單名稱...">
@@ -147,11 +145,9 @@
                 const data = snap.val();
                 if (data) {
                     window.vocabulary = (data.vocabulary || []).map(v => {
-                        // 自動轉型舊資料
                         if (!v.posGroups) {
                             v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: v.ex || '' }];
                         } else {
-                            // 確保舊的多詞性也有 ex 欄位
                             v.posGroups = v.posGroups.map(g => ({ ...g, ex: g.ex || '' }));
                         }
                         return v;
@@ -214,14 +210,14 @@
                     <option value="phr." ${pos==='phr.'?'selected':''}>phr.</option>
                 </select>
                 <input type="text" class="edit-trans-input" placeholder="翻譯" value="${trans}">
-                <textarea class="edit-ex-input" placeholder="該詞性專屬例句 (選填)" rows="2">${ex}</textarea>
+                <textarea class="edit-ex-input" placeholder="例句" rows="2">${ex}</textarea>
             `;
             container.appendChild(div);
         };
 
         window.openAddModal = function() {
             editingId = null;
-            document.getElementById('modal-title').innerText = "新增單字";
+            document.getElementById('modal-title').innerText = "WordMaster";
             document.getElementById('delete-btn').style.display = 'none';
             document.getElementById('pos-container').innerHTML = "";
             document.getElementById('edit-word-unit').value = window.currentUnit === "all" ? "" : window.currentUnit;
@@ -256,7 +252,7 @@
         window.openEditFromManage = function() {
             const item = getFilteredList()[window.currentIndex % getFilteredList().length];
             editingId = item.id;
-            document.getElementById('modal-title').innerText = "編輯單字";
+            document.getElementById('modal-title').innerText = "WordMaster";
             document.getElementById('delete-btn').style.display = 'block';
             document.getElementById('edit-word-unit').value = item.unit;
             document.getElementById('edit-word-eng').value = item.word;
@@ -268,7 +264,6 @@
             document.getElementById('wordEditModal').style.display = 'flex';
         };
 
-        // --- 核心共用功能 ---
         function getFilteredList() {
             let list = window.vocabulary;
             if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit);
@@ -315,7 +310,6 @@
             window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="setListMode('${l}')">${l}</button>`; });
         }
 
-        // --- 測驗系統 ---
         window.startQuiz = function() {
             quizQueue = [...getFilteredList()];
             if (quizQueue.length < 2) return alert("單字量不足");
