@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WordMaster - 雲端同步修復版</title>
+    <title>WordMaster - 雲端清空優化版</title>
     <style>
         :root { --primary: #4a90e2; --success: #34c759; --danger: #ff3b30; --bg: #f8f9fa; --card-bg: #ffffff; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; color: #333; margin: 0; box-sizing: border-box; }
@@ -71,11 +71,11 @@
             <h3 id="modal-title">單字資訊</h3>
             <input list="units-datalist" id="edit-word-unit" placeholder="單元名稱">
             <datalist id="units-datalist"></datalist>
-            <input type="text" id="edit-word-eng" placeholder="英文單字">
-            <select id="edit-word-pos"><option value="n.">n.</option><option value="v.">v.</option><option value="adj.">adj.</option><option value="adv.">adv.</option></select>
-            <input type="text" id="edit-word-chi" placeholder="翻譯">
-            <textarea id="edit-word-ex" placeholder="例句" rows="2"></textarea>
-            <textarea id="edit-word-note" placeholder="備註" rows="2"></textarea>
+            <input type="text" id="edit-word-eng" placeholder="英文單字 (必填)">
+            <select id="edit-word-pos"><option value="n.">n.</option><option value="v.">v.</option><option value="adj.">adj.</option><option value="adv.">adv.</option><option value="phr.">phr.</option></select>
+            <input type="text" id="edit-word-chi" placeholder="中文翻譯 (必填)">
+            <textarea id="edit-word-ex" placeholder="例句 (選填)" rows="2"></textarea>
+            <textarea id="edit-word-note" placeholder="備註/補充 (選填)" rows="2"></textarea>
             <button class="primary-btn" style="background:var(--success)" onclick="window.saveWordChange()">儲存雲端</button>
             <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除</button>
             <button class="primary-btn" style="background:#888; margin-top:10px;" onclick="window.closeEditModal()">取消</button>
@@ -126,11 +126,9 @@
             const name = document.getElementById('user-name-input').value.trim();
             if (!name) return alert("請輸入名字");
             window.currentUser = name;
-            
             document.getElementById('login-interface').classList.add('hidden');
             document.getElementById('study-interface').classList.remove('hidden');
             document.getElementById('user-display').innerText = "👤 " + window.currentUser;
-            
             const userRef = ref(db, 'users/' + window.currentUser);
             onValue(userRef, (snapshot) => {
                 const data = snapshot.val();
@@ -138,8 +136,7 @@
                     window.vocabulary = data.vocabulary || [];
                     window.customLists = data.customLists || [];
                 } else {
-                    // 如果是新用戶，自動給一筆範例資料並存檔
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Start", pos: "v.", trans: "開始", ex: "Welcome!", note: "這是雲端第一筆資料", starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Example", pos: "n.", trans: "範例", ex: "Welcome!", note: "點擊右上角 + 開始新增", starred: false, myLists: [] }];
                     window.customLists = [];
                     window.saveUserData();
                 }
@@ -150,27 +147,19 @@
 
         window.saveUserData = function() {
             if (!window.currentUser) return;
-            set(ref(db, 'users/' + window.currentUser), {
-                vocabulary: window.vocabulary,
-                customLists: window.customLists
-            });
+            set(ref(db, 'users/' + window.currentUser), { vocabulary: window.vocabulary, customLists: window.customLists });
         };
 
         window.updateUI = function() {
             const list = getFilteredList();
             const wd = document.getElementById('word-display');
             const dd = document.getElementById('detail-display');
-            if (list.length === 0) {
-                wd.innerText = "目前無單字，按 + 新增";
-                wd.style.display = 'block';
-                dd.style.display = 'none';
-                return;
-            }
+            if (list.length === 0) { wd.innerText = "目前無單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
             const item = list[window.currentIndex % list.length];
             wd.innerText = item.word;
             document.getElementById('trans-display').innerText = item.trans;
             document.getElementById('pos-display').innerText = `(${item.pos || 'n.'})`;
-            document.getElementById('example-display').innerText = item.ex || "(無例句)";
+            document.getElementById('example-display').innerText = item.ex || "";
             document.getElementById('note-display').innerText = item.note || "";
             document.getElementById('star-btn').innerText = item.starred ? "★" : "☆";
             document.getElementById('star-btn').style.color = item.starred ? "#ffd700" : "#333";
@@ -184,29 +173,41 @@
             return list;
         }
 
+        // --- 核心優化：開啟新增視窗時清空欄位 ---
+        window.openAddModal = function() {
+            editingId = null;
+            document.getElementById('modal-title').innerText = "新增單字";
+            document.getElementById('delete-btn').style.display = 'none';
+            
+            // 保留當前單元名稱，但清空單字內容
+            document.getElementById('edit-word-unit').value = window.currentUnit === "all" ? "" : window.currentUnit;
+            document.getElementById('edit-word-eng').value = "";
+            document.getElementById('edit-word-chi').value = "";
+            document.getElementById('edit-word-ex').value = "";
+            document.getElementById('edit-word-note').value = "";
+            document.getElementById('edit-word-pos').value = "n.";
+            
+            document.getElementById('wordEditModal').style.display = 'flex';
+        };
+
         window.saveWordChange = function() {
             const unit = document.getElementById('edit-word-unit').value || "未分類";
             const word = document.getElementById('edit-word-eng').value.trim();
             const trans = document.getElementById('edit-word-chi').value.trim();
-            if (!word || !trans) return alert("請輸入單字與翻譯");
+            if (!word || !trans) return alert("請填寫單字與翻譯");
+
+            const data = {
+                unit, word, trans,
+                pos: document.getElementById('edit-word-pos').value,
+                ex: document.getElementById('edit-word-ex').value.trim(),
+                note: document.getElementById('edit-word-note').value.trim()
+            };
 
             if (editingId) {
                 const idx = window.vocabulary.findIndex(v => v.id === editingId);
-                window.vocabulary[idx] = { 
-                    ...window.vocabulary[idx], 
-                    unit, word, trans, 
-                    pos: document.getElementById('edit-word-pos').value,
-                    ex: document.getElementById('edit-word-ex').value, 
-                    note: document.getElementById('edit-word-note').value 
-                };
+                window.vocabulary[idx] = { ...window.vocabulary[idx], ...data };
             } else {
-                window.vocabulary.push({ 
-                    id: Date.now(), unit, word, trans, 
-                    pos: document.getElementById('edit-word-pos').value,
-                    ex: document.getElementById('edit-word-ex').value, 
-                    note: document.getElementById('edit-word-note').value, 
-                    starred: false, myLists: [] 
-                });
+                window.vocabulary.push({ id: Date.now(), ...data, starred: false, myLists: [] });
             }
             window.saveUserData();
             window.closeEditModal();
@@ -219,46 +220,24 @@
             window.closeEditModal();
         };
 
-        window.toggleStar = function() {
-            const list = getFilteredList();
-            const item = list[window.currentIndex % list.length];
-            if (item) { item.starred = !item.starred; window.saveUserData(); }
-        };
-
-        window.flipCard = function() {
-            if(getFilteredList().length === 0) return;
-            window.isFlipped = !window.isFlipped;
-            document.getElementById('detail-display').style.display = window.isFlipped ? 'block' : 'none';
-            document.getElementById('word-display').style.display = window.isFlipped ? 'none' : 'block';
-        };
-
-        window.changeWord = function(n) {
-            const list = getFilteredList();
-            if(list.length === 0) return;
-            window.currentIndex = (window.currentIndex + n + list.length) % list.length;
-            window.isFlipped = false;
-            window.updateUI();
-        };
-
-        window.openAddModal = function() { editingId = null; document.getElementById('modal-title').innerText = "新增單字"; document.getElementById('delete-btn').style.display = 'none'; document.getElementById('wordEditModal').style.display = 'flex'; };
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
+        window.flipCard = function() { if(getFilteredList().length === 0) return; window.isFlipped = !window.isFlipped; document.getElementById('detail-display').style.display = window.isFlipped ? 'block' : 'none'; document.getElementById('word-display').style.display = window.isFlipped ? 'none' : 'block'; };
+        window.changeWord = function(n) { const list = getFilteredList(); if(list.length === 0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
+        window.toggleStar = function() { const item = getFilteredList()[window.currentIndex % getFilteredList().length]; if (item) { item.starred = !item.starred; window.saveUserData(); } };
         window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
         window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.updateUI(); };
-
+        
         window.openManageModal = function(e) {
             e.stopPropagation();
-            const area = document.getElementById('existing-lists-area');
-            area.innerHTML = "";
+            const area = document.getElementById('existing-lists-area'); area.innerHTML = "";
             window.customLists.forEach(name => {
-                const div = document.createElement('div');
-                div.className = 'list-item-row';
+                const div = document.createElement('div'); div.className = 'list-item-row';
                 div.innerHTML = `<span>+ ${name}</span><button onclick="window.deleteList('${name}')" style="color:red; border:none; background:none; cursor:pointer;">🗑️</button>`;
                 div.querySelector('span').onclick = () => {
                     const item = getFilteredList()[window.currentIndex % getFilteredList().length];
                     if (item && !item.myLists.includes(name)) { if(!item.myLists) item.myLists=[]; item.myLists.push(name); window.saveUserData(); }
                     window.closeManageModal();
-                };
-                area.appendChild(div);
+                }; area.appendChild(div);
             });
             document.getElementById('manageModal').style.display = 'flex';
         };
@@ -283,7 +262,6 @@
         };
 
         window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
-
         window.openEditFromManage = function() {
             const item = getFilteredList()[window.currentIndex % getFilteredList().length];
             if(!item) return;
@@ -293,6 +271,7 @@
             document.getElementById('edit-word-unit').value = item.unit;
             document.getElementById('edit-word-eng').value = item.word;
             document.getElementById('edit-word-chi').value = item.trans;
+            document.getElementById('edit-word-pos').value = item.pos || "n.";
             document.getElementById('edit-word-ex').value = item.ex || "";
             document.getElementById('edit-word-note').value = item.note || "";
             window.closeManageModal();
@@ -312,14 +291,12 @@
         function renderFolderBar() {
             const bar = document.getElementById('custom-folder-bar');
             bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setListMode('none')">全部</button>`;
-            window.customLists.forEach(l => {
-                bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="setListMode('${l}')">${l}</button>`;
-            });
+            window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="setListMode('${l}')">${l}</button>`; });
         }
 
         window.startQuiz = function() {
             quizQueue = [...getFilteredList()];
-            if (quizQueue.length < 2) return alert("單字量不足");
+            if (quizQueue.length < 2) return alert("至少需要 2 個單字才能測驗");
             quizQueue.sort(() => Math.random() - 0.5);
             quizIdx = 0; wrongWords = [];
             document.getElementById('study-interface').classList.add('hidden');
