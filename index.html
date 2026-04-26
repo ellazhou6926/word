@@ -13,11 +13,8 @@
         
         /* 單字卡 */
         .card { width: 100%; min-height: 350px; background: var(--card-bg); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; position: relative; box-sizing: border-box; cursor: pointer; }
-        
-        /* 字卡上的編輯按鈕 (⋯) */
         .card-more-btn { position: absolute; top: 20px; right: 20px; font-size: 24px; color: #ccc; padding: 5px; cursor: pointer; z-index: 10; }
-        .card-more-btn:hover { color: var(--primary); }
-
+        
         input, select, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 12px; font-size: 1.1rem; font-family: inherit; }
         
         .primary-btn { padding: 12px 30px; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
@@ -26,8 +23,11 @@
         .nav-control-btn { height: 46px; padding: 0 15px; border-radius: 10px; border: none; background: #fff; border: 1px solid #ddd; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         .btn-add { background: var(--success); color: white; border: none; font-weight: bold; }
         
-        .chip { padding: 8px 18px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; }
+        /* 標籤樣式 */
+        .chip { padding: 8px 15px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; display: inline-flex; align-items: center; gap: 6px; }
         .chip.active { background: var(--primary); color: white; }
+        .chip-del { font-weight: bold; padding: 2px 5px; border-radius: 50%; background: rgba(0,0,0,0.1); font-size: 12px; }
+        .chip-del:hover { background: var(--danger); color: white; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 380px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
@@ -45,7 +45,6 @@
         .pos-header { font-size: 1.3rem; margin-bottom: 8px; font-weight: bold; }
         .pos-tag { color: var(--primary); margin-right: 8px; }
         .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; }
-        .ex-text, .ex-trans { font-size: 1.15rem; line-height: 1.6; color: #333; }
         
         #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; text-align: left; }
         .opt-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; background: white; cursor: pointer; margin-bottom: 10px; font-size: 1.1rem; }
@@ -73,7 +72,6 @@
 
         <div class="card" onclick="window.flipCard()">
             <div class="card-more-btn" onclick="window.openEditFromCard(event)">⋯</div>
-            
             <h1 id="word-display" style="font-size: 3.2rem;">載入中...</h1>
             <div id="detail-display" style="display: none; width: 100%;">
                 <div id="pos-groups-area"></div>
@@ -109,14 +107,15 @@
     <div id="manageModal" class="modal">
         <div class="modal-content" style="width: 95%; max-width: 450px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin:0">單字清單</h3>
+                <h3 style="margin:0">單字清單管理</h3>
                 <button onclick="window.closeManageModal()" style="border:none; background:none; font-size:1.5rem;">✕</button>
             </div>
             <button id="unit-delete-btn" class="primary-btn" style="background:var(--danger); margin-bottom:20px; display:none;" onclick="window.deleteCurrentUnit()">🗑️ 刪除目前整個單元</button>
             <div id="manage-list-container"></div>
+            
             <div style="border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
-                <p style="font-size:0.9rem; color:#666;">管理自定義清單：</p>
-                <div id="existing-lists-area" style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;"></div>
+                <p style="font-size:0.9rem; color:#666; margin-bottom:10px;">現有自定義清單 (點擊加入，× 刪除)：</p>
+                <div id="existing-lists-area" style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px;"></div>
                 <div style="display:flex; gap:5px;">
                     <input type="text" id="new-list-name" placeholder="建立新清單..." style="margin-bottom:0; flex-grow: 1;">
                     <button class="primary-btn" style="width:auto; white-space:nowrap; margin-top:0;" onclick="window.handleCreateAndAdd()">建立</button>
@@ -173,12 +172,10 @@
                     window.vocabulary = (data.vocabulary || []).map(v => {
                         if (!v.posGroups) { v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: v.ex || '', exTrans: '' }]; }
                         if (v.visible === undefined) v.visible = true;
+                        if (!v.myLists) v.myLists = [];
                         return v;
                     });
                     window.customLists = data.customLists || [];
-                } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Welcome", posGroups: [{pos: "v.", trans: "歡迎", ex: "", exTrans: ""}], visible: true, starred: false, myLists: [] }];
-                    window.saveUserData();
                 }
                 updateUnitSelector();
                 window.updateUI();
@@ -196,7 +193,7 @@
             const dd = document.getElementById('detail-display');
             const area = document.getElementById('pos-groups-area');
 
-            if (visibleList.length === 0) { wd.innerText = "無可見單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
+            if (visibleList.length === 0) { wd.innerText = "目前沒有單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
             const item = visibleList[window.currentIndex % visibleList.length];
             wd.innerText = item.word;
             area.innerHTML = "";
@@ -213,28 +210,25 @@
             renderFolderBar();
         };
 
-        // --- 字卡專屬編輯功能 (⋯) ---
         window.openEditFromCard = function(e) {
-            if(e) e.stopPropagation(); // 防止觸發翻牌
+            if(e) e.stopPropagation();
             const visibleList = getFilteredList().filter(v => v.visible);
             if (visibleList.length === 0) return;
-            const item = visibleList[window.currentIndex % visibleList.length];
-            window.quickEdit(item.id);
+            window.quickEdit(visibleList[window.currentIndex % visibleList.length].id);
         };
 
-        // --- 清單管理功能 ---
         window.openManageModal = function() {
             const container = document.getElementById('manage-list-container');
-            const unitDelBtn = document.getElementById('unit-delete-btn');
             container.innerHTML = "";
+            const unitDelBtn = document.getElementById('unit-delete-btn');
             unitDelBtn.style.display = (window.currentUnit === "all") ? "none" : "block";
             unitDelBtn.innerText = `🗑️ 刪除整個「${window.currentUnit}」`;
 
-            let currentScopeList = window.vocabulary;
-            if (window.currentUnit !== "all") currentScopeList = currentScopeList.filter(v => v.unit === window.currentUnit);
-            if (window.currentCustomList !== "none") currentScopeList = currentScopeList.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
+            let scopeList = window.vocabulary;
+            if (window.currentUnit !== "all") scopeList = scopeList.filter(v => v.unit === window.currentUnit);
+            if (window.currentCustomList !== "none") scopeList = scopeList.filter(v => v.myLists.includes(window.currentCustomList));
 
-            currentScopeList.forEach(item => {
+            scopeList.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'manage-item';
                 div.innerHTML = `
@@ -247,22 +241,39 @@
                 container.appendChild(div);
             });
 
+            // 渲染現有自定義清單標籤 (管理視窗內)
             const area = document.getElementById('existing-lists-area'); area.innerHTML = "";
             window.customLists.forEach(name => {
-                const btn = document.createElement('button'); btn.className = 'chip'; btn.innerText = name;
-                btn.onclick = () => {
+                const chip = document.createElement('div');
+                chip.className = 'chip';
+                chip.innerHTML = `${name} <span class="chip-del" onclick="window.deleteCustomList('${name}', event)">×</span>`;
+                chip.onclick = () => {
                     const visibleList = getFilteredList().filter(v => v.visible);
                     const currentItem = visibleList[window.currentIndex % visibleList.length];
                     if (currentItem) {
-                        if(!currentItem.myLists) currentItem.myLists = [];
-                        if(!currentItem.myLists.includes(name)) currentItem.myLists.push(name);
-                        window.saveUserData();
-                        alert(`已加入：${name}`);
+                        if(!currentItem.myLists.includes(name)) {
+                            currentItem.myLists.push(name);
+                            window.saveUserData();
+                            alert(`已加入：${name}`);
+                        }
                     }
                 };
-                area.appendChild(btn);
+                area.appendChild(chip);
             });
             document.getElementById('manageModal').style.display = 'flex';
+        };
+
+        window.deleteCustomList = function(name, e) {
+            if(e) e.stopPropagation();
+            if(confirm(`確定刪除清單「${name}」？單字不會被刪除。`)) {
+                window.customLists = window.customLists.filter(l => l !== name);
+                window.vocabulary.forEach(v => {
+                    if(v.myLists) v.myLists = v.myLists.filter(l => l !== name);
+                });
+                if(window.currentCustomList === name) window.currentCustomList = "none";
+                window.saveUserData();
+                window.openManageModal();
+            }
         };
 
         window.toggleVisibility = function(id) {
@@ -294,7 +305,7 @@
         };
 
         window.deleteCurrentUnit = function() {
-            if (confirm(`確定要刪除整個「${window.currentUnit}」及其所有單字嗎？`)) {
+            if (confirm(`確定要刪除整個「${window.currentUnit}」？`)) {
                 window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit);
                 window.currentUnit = "all";
                 window.saveUserData();
@@ -329,6 +340,7 @@
             }
             window.saveUserData(); window.closeEditModal(); 
         };
+
         window.deleteWord = function() { if(confirm("確定刪除？")) { window.vocabulary = window.vocabulary.filter(v => v.id !== editingId); window.saveUserData(); window.closeEditModal(); } };
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
         window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
@@ -340,16 +352,18 @@
             const item = list[window.currentIndex % list.length];
             if (item) { item.starred = !item.starred; window.saveUserData(); window.updateUI(); }
         };
-        window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
+
+        window.setUnitMode = function(u) { window.currentUnit = u; window.currentCustomList = "none"; window.currentIndex = 0; window.updateUI(); };
         window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.updateUI(); };
         window.handleCreateAndAdd = function() { const n = document.getElementById('new-list-name').value.trim(); if (n) { if (!window.customLists.includes(n)) window.customLists.push(n); window.saveUserData(); document.getElementById('new-list-name').value = ""; window.openManageModal(); } };
         
         function getFilteredList() {
             let list = window.vocabulary;
             if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit);
-            if (window.currentCustomList !== "none") list = list.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
+            if (window.currentCustomList !== "none") list = list.filter(v => v.myLists.includes(window.currentCustomList));
             return list;
         }
+
         function updateUnitSelector() {
             const s = document.getElementById('unit-nav-selector');
             const units = [...new Set(window.vocabulary.map(v => v.unit))];
@@ -359,11 +373,13 @@
             const dl = document.getElementById('units-datalist'); dl.innerHTML = "";
             units.forEach(u => dl.innerHTML += `<option value="${u}">`);
         }
+
         function renderFolderBar() {
             const bar = document.getElementById('custom-folder-bar');
-            bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setUnitMode('all'); window.setListMode('none')">全部</button>`;
+            bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setListMode('none')">全部</button>`;
             window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="window.setListMode('${l}')">${l}</button>`; });
         }
+
         window.startQuiz = function() {
             quizQueue = getFilteredList().filter(v => v.visible);
             if (quizQueue.length < 2) return alert("單字量不足");
@@ -373,6 +389,7 @@
             document.getElementById('quiz-interface').classList.remove('hidden');
             loadQuestion();
         };
+
         function loadQuestion() {
             const item = quizQueue[quizIdx];
             document.getElementById('quiz-progress').innerText = `${quizIdx+1}/${quizQueue.length}`;
@@ -395,13 +412,14 @@
                 }; area.appendChild(b);
             });
         }
+
         function showResults() {
             document.getElementById('quiz-interface').classList.add('hidden');
             document.getElementById('result-interface').classList.remove('hidden');
             document.getElementById('score-text').innerText = `答對：${quizQueue.length - wrongWords.length} 題`;
             const area = document.getElementById('wrong-words-list'); area.innerHTML = "";
             wrongWords.forEach(w => {
-                const div = document.createElement('div'); div.className = 'list-item-row';
+                const div = document.createElement('div');
                 div.innerHTML = `<span><strong>${w.word}</strong> - ${w.posGroups[0].trans}</span>`;
                 area.appendChild(div);
             });
