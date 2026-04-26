@@ -24,15 +24,16 @@
         .pos-group-display { text-align: left; width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         .pos-header { font-size: 1.3rem; margin-bottom: 8px; font-weight: bold; }
         .pos-tag { color: var(--primary); margin-right: 8px; }
-        
-        /* 例句區塊：移除虛線 */
         .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; word-break: break-word; }
         .ex-text, .ex-trans { font-size: 1.15rem; line-height: 1.6; color: #333; }
-        .ex-trans { margin-top: 4px; display: block; } /* 僅保留小間距，移除 border-top */
+        .ex-trans { margin-top: 4px; display: block; }
         
         #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; text-align: left; }
         .list-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f9f9f9; border-radius: 10px; margin-bottom: 8px; }
         .opt-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; background: white; cursor: pointer; margin-bottom: 10px; font-size: 1.1rem; }
+        
+        /* 刪除單元按鈕樣式 */
+        .del-unit-btn { background: #fff; border: 1px solid var(--danger); color: var(--danger); padding: 0 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -49,8 +50,9 @@
             <button onclick="location.reload()" style="background:none; border:none; color:#999; text-decoration:underline; cursor:pointer;">登出</button>
         </div>
         
-        <div style="display:flex; gap:10px; width:100%; margin-bottom:15px;">
+        <div style="display:flex; gap:8px; width:100%; margin-bottom:15px;">
             <select id="unit-nav-selector" onchange="window.setUnitMode(this.value)" style="margin-bottom:0; flex-grow: 1;"></select>
+            <button id="unit-delete-trigger" class="del-unit-btn" onclick="window.deleteCurrentUnit()" title="刪除整個單元">🗑️</button>
             <button onclick="window.openAddModal()" style="padding:0 15px; border-radius:10px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:bold;">+</button>
         </div>
 
@@ -141,21 +143,17 @@
             document.getElementById('login-interface').classList.add('hidden');
             document.getElementById('study-interface').classList.remove('hidden');
             document.getElementById('user-display').innerText = "👤 " + window.currentUser;
-            
             onValue(ref(db, 'users/' + window.currentUser), (snap) => {
                 const data = snap.val();
                 if (data) {
                     window.vocabulary = (data.vocabulary || []).map(v => {
-                        if (!v.posGroups) {
-                            v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: v.ex || '', exTrans: '' }];
-                        } else {
-                            v.posGroups = v.posGroups.map(g => ({ ...g, ex: g.ex || '', exTrans: g.exTrans || '' }));
-                        }
+                        if (!v.posGroups) { v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: v.ex || '', exTrans: '' }]; }
+                        else { v.posGroups = v.posGroups.map(g => ({ ...g, ex: g.ex || '', exTrans: g.exTrans || '' })); }
                         return v;
                     });
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Study", posGroups: [{pos: "v.", trans: "學習", ex: "I study English.", exTrans: "我學習英文。"}], note: "歡迎使用 WordMaster", starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Study", posGroups: [{pos: "v.", trans: "學習", ex: "I study English.", exTrans: "我學習英文。"}], note: "歡迎", starred: false, myLists: [] }];
                     window.saveUserData();
                 }
                 updateUnitSelector();
@@ -173,55 +171,44 @@
             const wd = document.getElementById('word-display');
             const dd = document.getElementById('detail-display');
             const area = document.getElementById('pos-groups-area');
-            if (list.length === 0) { wd.innerText = "無單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
+            const delBtn = document.getElementById('unit-delete-trigger');
             
+            // 只有在選擇特定單元時才顯示刪除按鈕
+            delBtn.style.display = (window.currentUnit === "all") ? "none" : "flex";
+
+            if (list.length === 0) { wd.innerText = "目前無單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
             const item = list[window.currentIndex % list.length];
             wd.innerText = item.word;
-            
             area.innerHTML = "";
             item.posGroups.forEach(g => {
-                let exHtml = "";
-                if (g.ex) {
-                    exHtml = `
-                        <div class="ex-container">
-                            <div class="ex-text">${g.ex}</div>
-                            ${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}
-                        </div>
-                    `;
-                }
-                area.innerHTML += `
-                    <div class="pos-group-display">
-                        <div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>
-                        ${exHtml}
-                    </div>
-                `;
+                let exHtml = g.ex ? `<div class="ex-container"><div class="ex-text">${g.ex}</div>${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}</div>` : "";
+                area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
             });
-
             document.getElementById('note-display').innerText = item.note || "";
             document.getElementById('note-display').style.display = item.note ? "block" : "none";
-            
             dd.style.display = window.isFlipped ? 'block' : 'none';
             wd.style.display = window.isFlipped ? 'none' : 'block';
             renderFolderBar();
+        };
+
+        // --- 核心功能：刪除整個單元 ---
+        window.deleteCurrentUnit = function() {
+            if (window.currentUnit === "all") return;
+            const confirmMsg = `確定要刪除整個「${window.currentUnit}」嗎？\n這將會永久刪除該單元下的所有單字！`;
+            if (confirm(confirmMsg)) {
+                window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit);
+                window.currentUnit = "all"; // 跳回所有單元
+                window.currentIndex = 0;
+                window.saveUserData();
+                alert("單元已刪除");
+            }
         };
 
         window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
             const container = document.getElementById('pos-container');
             const div = document.createElement('div');
             div.className = 'pos-entry';
-            div.innerHTML = `
-                <button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button>
-                <select class="edit-pos-select">
-                    <option value="n." ${pos==='n.'?'selected':''}>n.</option>
-                    <option value="v." ${pos==='v.'?'selected':''}>v.</option>
-                    <option value="adj." ${pos==='adj.'?'selected':''}>adj.</option>
-                    <option value="adv." ${pos==='adv.'?'selected':''}>adv.</option>
-                    <option value="phr." ${pos==='phr.'?'selected':''}>phr.</option>
-                </select>
-                <input type="text" class="edit-trans-input" placeholder="翻譯" value="${trans}">
-                <textarea class="edit-ex-input" placeholder="例句" rows="2">${ex}</textarea>
-                <textarea class="edit-ex-trans-input" placeholder="例句翻譯" rows="1">${exTrans}</textarea>
-            `;
+            div.innerHTML = `<button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button><select class="edit-pos-select"><option value="n." ${pos==='n.'?'selected':''}>n.</option><option value="v." ${pos==='v.'?'selected':''}>v.</option><option value="adj." ${pos==='adj.'?'selected':''}>adj.</option><option value="adv." ${pos==='adv.'?'selected':''}>adv.</option><option value="phr." ${pos==='phr.'?'selected':''}>phr.</option></select><input type="text" class="edit-trans-input" placeholder="翻譯" value="${trans}"><textarea class="edit-ex-input" placeholder="例句" rows="2">${ex}</textarea><textarea class="edit-ex-trans-input" placeholder="例句翻譯" rows="1">${exTrans}</textarea>`;
             container.appendChild(div);
         };
 
@@ -230,7 +217,7 @@
             document.getElementById('modal-title').innerText = "WordMaster";
             document.getElementById('delete-btn').style.display = 'none';
             document.getElementById('pos-container').innerHTML = "";
-            document.getElementById('edit-word-unit').value = window.currentUnit === "all" ? "" : window.currentUnit;
+            document.getElementById('edit-word-unit').value = (window.currentUnit === "all") ? "" : window.currentUnit;
             document.getElementById('edit-word-eng').value = "";
             document.getElementById('edit-word-note').value = "";
             window.addPosField();
@@ -275,7 +262,6 @@
             document.getElementById('wordEditModal').style.display = 'flex';
         };
 
-        // --- 核心邏輯 ---
         function getFilteredList() {
             let list = window.vocabulary;
             if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit);
