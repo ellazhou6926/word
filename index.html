@@ -25,10 +25,10 @@
         .pos-header { font-size: 1.3rem; margin-bottom: 8px; font-weight: bold; }
         .pos-tag { color: var(--primary); margin-right: 8px; }
         
-        /* 例句區塊優化：兩者字體一致 */
+        /* 例句區塊：移除虛線 */
         .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; word-break: break-word; }
         .ex-text, .ex-trans { font-size: 1.15rem; line-height: 1.6; color: #333; }
-        .ex-trans { border-top: 1px solid #e0e0e0; padding-top: 6px; margin-top: 6px; }
+        .ex-trans { margin-top: 4px; display: block; } /* 僅保留小間距，移除 border-top */
         
         #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; text-align: left; }
         .list-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f9f9f9; border-radius: 10px; margin-bottom: 8px; }
@@ -79,12 +79,9 @@
             <input list="units-datalist" id="edit-word-unit" placeholder="單元名稱">
             <datalist id="units-datalist"></datalist>
             <input type="text" id="edit-word-eng" placeholder="英文單字">
-            
             <div id="pos-container"></div>
             <button class="primary-btn" style="background:#eee; color:#333; margin-bottom:15px;" onclick="window.addPosField()">+ 新增詞性與翻譯</button>
-
             <textarea id="edit-word-note" placeholder="備註" rows="2"></textarea>
-            
             <button class="primary-btn" style="background:var(--success)" onclick="window.saveWordChange()">儲存雲端</button>
             <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除單字</button>
             <button class="primary-btn" style="background:#888; margin-top:10px;" onclick="window.closeEditModal()">取消</button>
@@ -158,7 +155,7 @@
                     });
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Study", posGroups: [{pos: "v.", trans: "學習", ex: "I study English.", exTrans: "我學習英文。"}], note: "歡迎", starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Study", posGroups: [{pos: "v.", trans: "學習", ex: "I study English.", exTrans: "我學習英文。"}], note: "歡迎使用 WordMaster", starred: false, myLists: [] }];
                     window.saveUserData();
                 }
                 updateUnitSelector();
@@ -278,6 +275,7 @@
             document.getElementById('wordEditModal').style.display = 'flex';
         };
 
+        // --- 核心邏輯 ---
         function getFilteredList() {
             let list = window.vocabulary;
             if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit);
