@@ -10,11 +10,18 @@
         .hidden { display: none !important; }
         
         #login-interface, #study-interface, #quiz-interface, #result-interface { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        
+        /* 單字卡 */
         .card { width: 100%; min-height: 350px; background: var(--card-bg); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; position: relative; box-sizing: border-box; cursor: pointer; }
         
         input, select, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 12px; font-size: 1.1rem; font-family: inherit; }
+        
         .primary-btn { padding: 12px 30px; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
         .btn-circle { width: 60px; height: 60px; border-radius: 50%; border: none; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+        
+        /* 下拉選單旁的控制按鈕 */
+        .nav-control-btn { height: 46px; padding: 0 15px; border-radius: 10px; border: none; background: #fff; border: 1px solid #ddd; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .btn-add { background: var(--success); color: white; border: none; font-weight: bold; }
         
         .chip { padding: 8px 18px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; }
         .chip.active { background: var(--primary); color: white; }
@@ -22,12 +29,11 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 380px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
         
-        /* 管理清單專用樣式 */
-        .manage-item { display: flex; align-items: center; background: #fff; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        /* 管理清單條目 */
+        .manage-item { display: flex; align-items: center; background: #f9f9f9; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
         .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; margin-bottom: 0; }
         .manage-info { flex-grow: 1; text-align: left; }
-        .manage-info b { font-size: 1.1rem; display: block; }
-        .manage-info small { color: #888; }
+        .manage-info b { font-size: 1.1rem; display: block; word-break: break-all; }
         .manage-actions button { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
 
         .pos-entry { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary); position: relative; }
@@ -57,13 +63,13 @@
             <button onclick="location.reload()" style="background:none; border:none; color:#999; text-decoration:underline;">登出</button>
         </div>
         
-        <div style="display:flex; gap:8px; width:100%; margin-bottom:15px;">
-            <select id="unit-nav-selector" onchange="window.setUnitMode(this.value)" style="margin-bottom:0; flex-grow: 1;"></select>
-            <button onclick="window.openAddModal()" style="padding:0 15px; border-radius:10px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:bold;">+</button>
+        <div style="display:flex; gap:8px; width:100%; margin-bottom:15px; align-items: center;">
+            <select id="unit-nav-selector" onchange="window.setUnitMode(this.value)" style="margin-bottom:0; flex-grow: 1; height: 46px;"></select>
+            <button class="nav-control-btn" onclick="window.openManageModal()" title="管理清單">☰</button>
+            <button class="nav-control-btn btn-add" onclick="window.openAddModal()" title="新增單字">+</button>
         </div>
 
         <div class="card" onclick="window.flipCard()">
-            <div style="position: absolute; top: 20px; right: 20px; font-size: 24px; color: #ccc;" onclick="window.openManageModal(event)">⋯</div>
             <h1 id="word-display" style="font-size: 3.2rem;">載入中...</h1>
             <div id="detail-display" style="display: none; width: 100%;">
                 <div id="pos-groups-area"></div>
@@ -99,21 +105,20 @@
     <div id="manageModal" class="modal">
         <div class="modal-content" style="width: 95%; max-width: 450px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin:0">單字管理清單</h3>
+                <h3 style="margin:0">單字清單</h3>
                 <button onclick="window.closeManageModal()" style="border:none; background:none; font-size:1.5rem;">✕</button>
             </div>
             
             <button id="unit-delete-btn" class="primary-btn" style="background:var(--danger); margin-bottom:20px; display:none;" onclick="window.deleteCurrentUnit()">🗑️ 刪除目前整個單元</button>
 
-            <div id="manage-list-container">
-                </div>
+            <div id="manage-list-container"></div>
             
             <div style="border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
-                <p style="font-size:0.9rem; color:#666;">將目前的單字加入至特定清單：</p>
+                <p style="font-size:0.9rem; color:#666;">加入目前的單字至：</p>
                 <div id="existing-lists-area" style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;"></div>
                 <div style="display:flex; gap:5px;">
-                    <input type="text" id="new-list-name" placeholder="建立新清單..." style="margin-bottom:0;">
-                    <button class="primary-btn" style="width:auto; white-space:nowrap;" onclick="window.handleCreateAndAdd()">建立</button>
+                    <input type="text" id="new-list-name" placeholder="建立新清單..." style="margin-bottom:0; flex-grow: 1;">
+                    <button class="primary-btn" style="width:auto; white-space:nowrap; margin-top:0;" onclick="window.handleCreateAndAdd()">建立</button>
                 </div>
             </div>
         </div>
@@ -166,12 +171,12 @@
                 if (data) {
                     window.vocabulary = (data.vocabulary || []).map(v => {
                         if (!v.posGroups) { v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: v.ex || '', exTrans: '' }]; }
-                        if (v.visible === undefined) v.visible = true; // 預設可見
+                        if (v.visible === undefined) v.visible = true;
                         return v;
                     });
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Welcome", posGroups: [{pos: "v.", trans: "歡迎", ex: "", exTrans: ""}], visible: true, starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Start", posGroups: [{pos: "v.", trans: "開始", ex: "", exTrans: ""}], visible: true, starred: false, myLists: [] }];
                     window.saveUserData();
                 }
                 updateUnitSelector();
@@ -185,13 +190,13 @@
         };
 
         window.updateUI = function() {
-            const list = getFilteredList().filter(v => v.visible); // 只顯示打勾的
+            const visibleList = getFilteredList().filter(v => v.visible);
             const wd = document.getElementById('word-display');
             const dd = document.getElementById('detail-display');
             const area = document.getElementById('pos-groups-area');
 
-            if (list.length === 0) { wd.innerText = "此單元無可見單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
-            const item = list[window.currentIndex % list.length];
+            if (visibleList.length === 0) { wd.innerText = "無可見單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
+            const item = visibleList[window.currentIndex % visibleList.length];
             wd.innerText = item.word;
             area.innerHTML = "";
             item.posGroups.forEach(g => {
@@ -207,67 +212,51 @@
             renderFolderBar();
         };
 
-        // --- 管理清單功能 ---
-        window.openManageModal = function(e) {
-            if(e) e.stopPropagation();
+        window.openManageModal = function() {
             const container = document.getElementById('manage-list-container');
             const unitDelBtn = document.getElementById('unit-delete-btn');
             container.innerHTML = "";
-            
-            // 顯示刪除單元按鈕
             unitDelBtn.style.display = (window.currentUnit === "all") ? "none" : "block";
             unitDelBtn.innerText = `🗑️ 刪除整個「${window.currentUnit}」`;
 
-            // 取得目前的清單（不考慮勾選狀態，全部列出來編輯）
-            let fullList = window.vocabulary;
-            if (window.currentUnit !== "all") fullList = fullList.filter(v => v.unit === window.currentUnit);
-            if (window.currentCustomList !== "none") fullList = fullList.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
+            let currentScopeList = window.vocabulary;
+            if (window.currentUnit !== "all") currentScopeList = currentScopeList.filter(v => v.unit === window.currentUnit);
+            if (window.currentCustomList !== "none") currentScopeList = currentScopeList.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
 
-            fullList.forEach(item => {
+            currentScopeList.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'manage-item';
                 div.innerHTML = `
                     <input type="checkbox" ${item.visible ? 'checked' : ''} onchange="window.toggleVisibility(${item.id})">
-                    <div class="manage-info">
-                        <b>${item.word}</b>
-                        <small>${item.posGroups[0].trans}</small>
-                    </div>
+                    <div class="manage-info"><b>${item.word}</b><small>${item.posGroups[0].trans}</small></div>
                     <div class="manage-actions">
                         <button onclick="window.quickEdit(${item.id})">✏️</button>
                         <button onclick="window.quickDelete(${item.id})">🗑️</button>
-                    </div>
-                `;
+                    </div>`;
                 container.appendChild(div);
             });
 
-            // 更新清單按鈕區
             const area = document.getElementById('existing-lists-area'); area.innerHTML = "";
             window.customLists.forEach(name => {
-                const btn = document.createElement('button');
-                btn.className = 'chip';
-                btn.innerText = name;
+                const btn = document.createElement('button'); btn.className = 'chip'; btn.innerText = name;
                 btn.onclick = () => {
-                    const currentItem = getFilteredList().filter(v => v.visible)[window.currentIndex % getFilteredList().filter(v => v.visible).length];
+                    const currentVisible = getFilteredList().filter(v => v.visible);
+                    const currentItem = currentVisible[window.currentIndex % currentVisible.length];
                     if (currentItem) {
                         if(!currentItem.myLists) currentItem.myLists = [];
                         if(!currentItem.myLists.includes(name)) currentItem.myLists.push(name);
                         window.saveUserData();
-                        alert(`已加入清單：${name}`);
+                        alert(`已加入：${name}`);
                     }
                 };
                 area.appendChild(btn);
             });
-
             document.getElementById('manageModal').style.display = 'flex';
         };
 
         window.toggleVisibility = function(id) {
             const item = window.vocabulary.find(v => v.id === id);
-            if (item) {
-                item.visible = !item.visible;
-                window.saveUserData();
-                window.updateUI();
-            }
+            if (item) { item.visible = !item.visible; window.saveUserData(); window.updateUI(); }
         };
 
         window.quickEdit = function(id) {
@@ -289,12 +278,12 @@
             if(confirm("確定刪除此單字？")) {
                 window.vocabulary = window.vocabulary.filter(v => v.id !== id);
                 window.saveUserData();
-                window.openManageModal(); // 刷新列表
+                window.openManageModal();
             }
         };
 
         window.deleteCurrentUnit = function() {
-            if (confirm(`確定要刪除整個「${window.currentUnit}」及其所有單字嗎？`)) {
+            if (confirm(`確定要刪除整個「${window.currentUnit}」及其單字？`)) {
                 window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit);
                 window.currentUnit = "all";
                 window.saveUserData();
@@ -302,7 +291,6 @@
             }
         };
 
-        // --- 原有功能維持 ---
         window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
             const container = document.getElementById('pos-container');
             const div = document.createElement('div');
@@ -310,17 +298,15 @@
             div.innerHTML = `<button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button><select class="edit-pos-select"><option value="n." ${pos==='n.'?'selected':''}>n.</option><option value="v." ${pos==='v.'?'selected':''}>v.</option><option value="adj." ${pos==='adj.'?'selected':''}>adj.</option><option value="adv." ${pos==='adv.'?'selected':''}>adv.</option><option value="phr." ${pos==='phr.'?'selected':''}>phr.</option></select><input type="text" class="edit-trans-input" placeholder="翻譯" value="${trans}"><textarea class="edit-ex-input" placeholder="例句" rows="2">${ex}</textarea><textarea class="edit-ex-trans-input" placeholder="例句翻譯" rows="1">${exTrans}</textarea>`;
             container.appendChild(div);
         };
+
         window.openAddModal = function() { editingId = null; document.getElementById('delete-btn').style.display = 'none'; document.getElementById('pos-container').innerHTML = ""; document.getElementById('edit-word-unit').value = (window.currentUnit==="all"?"":window.currentUnit); document.getElementById('edit-word-eng').value = ""; document.getElementById('edit-word-note').value = ""; window.addPosField(); document.getElementById('wordEditModal').style.display = 'flex'; };
         window.saveWordChange = function() { 
             const word = document.getElementById('edit-word-eng').value.trim();
             if (!word) return alert("請輸入單字");
             const posGroups = [];
             document.querySelectorAll('.pos-entry').forEach(ent => {
-                const p = ent.querySelector('.edit-pos-select').value;
                 const t = ent.querySelector('.edit-trans-input').value.trim();
-                const e = ent.querySelector('.edit-ex-input').value.trim();
-                const et = ent.querySelector('.edit-ex-trans-input').value.trim();
-                if (t) posGroups.push({ pos: p, trans: t, ex: e, exTrans: et });
+                if (t) posGroups.push({ pos: ent.querySelector('.edit-pos-select').value, trans: t, ex: ent.querySelector('.edit-ex-input').value.trim(), exTrans: ent.querySelector('.edit-ex-trans-input').value.trim() });
             });
             const data = { unit: document.getElementById('edit-word-unit').value || "未分類", word, posGroups, note: document.getElementById('edit-word-note').value.trim(), visible: true };
             if (editingId) {
@@ -355,6 +341,8 @@
             s.innerHTML = '<option value="all">📚 所有單元</option>';
             units.forEach(u => s.innerHTML += `<option value="${u}">📖 ${u}</option>`);
             s.value = window.currentUnit;
+            const dl = document.getElementById('units-datalist'); dl.innerHTML = "";
+            units.forEach(u => dl.innerHTML += `<option value="${u}">`);
         }
         function renderFolderBar() {
             const bar = document.getElementById('custom-folder-bar');
