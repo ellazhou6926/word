@@ -24,9 +24,13 @@
         .pos-group-display { text-align: left; width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         .pos-header { font-size: 1.3rem; margin-bottom: 8px; font-weight: bold; }
         .pos-tag { color: var(--primary); margin-right: 8px; }
-        .ex-text { background: #f3f4f6; padding: 12px; border-radius: 10px; font-size: 1.1rem; line-height: 1.5; color: #444; margin-top: 5px; word-break: break-word; }
-        #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; text-align: left; }
         
+        /* 例句區塊優化：兩者字體一致 */
+        .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; word-break: break-word; }
+        .ex-text, .ex-trans { font-size: 1.15rem; line-height: 1.6; color: #333; }
+        .ex-trans { border-top: 1px solid #e0e0e0; padding-top: 6px; margin-top: 6px; }
+        
+        #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; text-align: left; }
         .list-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f9f9f9; border-radius: 10px; margin-bottom: 8px; }
         .opt-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; background: white; cursor: pointer; margin-bottom: 10px; font-size: 1.1rem; }
     </style>
@@ -42,7 +46,7 @@
     <div id="study-interface" class="hidden">
         <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 10px;">
             <span id="user-display" style="font-weight: bold; color: var(--primary);"></span>
-            <button onclick="location.reload()" style="background:none; border:none; color:#999; text-decoration:underline;">登出</button>
+            <button onclick="location.reload()" style="background:none; border:none; color:#999; text-decoration:underline; cursor:pointer;">登出</button>
         </div>
         
         <div style="display:flex; gap:10px; width:100%; margin-bottom:15px;">
@@ -146,15 +150,15 @@
                 if (data) {
                     window.vocabulary = (data.vocabulary || []).map(v => {
                         if (!v.posGroups) {
-                            v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: v.ex || '' }];
+                            v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: v.ex || '', exTrans: '' }];
                         } else {
-                            v.posGroups = v.posGroups.map(g => ({ ...g, ex: g.ex || '' }));
+                            v.posGroups = v.posGroups.map(g => ({ ...g, ex: g.ex || '', exTrans: g.exTrans || '' }));
                         }
                         return v;
                     });
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Study", posGroups: [{pos: "v.", trans: "學習", ex: "I study hard."}, {pos: "n.", trans: "書房", ex: "The study is quiet."}], note: "這是專屬例句範例", starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Study", posGroups: [{pos: "v.", trans: "學習", ex: "I study English.", exTrans: "我學習英文。"}], note: "歡迎", starred: false, myLists: [] }];
                     window.saveUserData();
                 }
                 updateUnitSelector();
@@ -179,7 +183,15 @@
             
             area.innerHTML = "";
             item.posGroups.forEach(g => {
-                let exHtml = g.ex ? `<div class="ex-text">${g.ex}</div>` : "";
+                let exHtml = "";
+                if (g.ex) {
+                    exHtml = `
+                        <div class="ex-container">
+                            <div class="ex-text">${g.ex}</div>
+                            ${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}
+                        </div>
+                    `;
+                }
                 area.innerHTML += `
                     <div class="pos-group-display">
                         <div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>
@@ -196,7 +208,7 @@
             renderFolderBar();
         };
 
-        window.addPosField = function(trans = "", pos = "n.", ex = "") {
+        window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
             const container = document.getElementById('pos-container');
             const div = document.createElement('div');
             div.className = 'pos-entry';
@@ -211,6 +223,7 @@
                 </select>
                 <input type="text" class="edit-trans-input" placeholder="翻譯" value="${trans}">
                 <textarea class="edit-ex-input" placeholder="例句" rows="2">${ex}</textarea>
+                <textarea class="edit-ex-trans-input" placeholder="例句翻譯" rows="1">${exTrans}</textarea>
             `;
             container.appendChild(div);
         };
@@ -235,7 +248,8 @@
                 const p = ent.querySelector('.edit-pos-select').value;
                 const t = ent.querySelector('.edit-trans-input').value.trim();
                 const e = ent.querySelector('.edit-ex-input').value.trim();
-                if (t) posGroups.push({ pos: p, trans: t, ex: e });
+                const et = ent.querySelector('.edit-ex-trans-input').value.trim();
+                if (t) posGroups.push({ pos: p, trans: t, ex: e, exTrans: et });
             });
             if (posGroups.length === 0) return alert("請輸入翻譯");
             const data = { unit: document.getElementById('edit-word-unit').value || "未分類", word, posGroups, note: document.getElementById('edit-word-note').value.trim() };
@@ -259,7 +273,7 @@
             document.getElementById('edit-word-note').value = item.note || "";
             const container = document.getElementById('pos-container');
             container.innerHTML = "";
-            item.posGroups.forEach(g => window.addPosField(g.trans, g.pos, g.ex));
+            item.posGroups.forEach(g => window.addPosField(g.trans, g.pos, g.ex, g.exTrans));
             window.closeManageModal();
             document.getElementById('wordEditModal').style.display = 'flex';
         };
@@ -308,49 +322,6 @@
             const bar = document.getElementById('custom-folder-bar');
             bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setUnitMode('all'); window.setListMode('none')">全部</button>`;
             window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="setListMode('${l}')">${l}</button>`; });
-        }
-
-        window.startQuiz = function() {
-            quizQueue = [...getFilteredList()];
-            if (quizQueue.length < 2) return alert("單字量不足");
-            quizQueue.sort(() => Math.random() - 0.5);
-            quizIdx = 0; wrongWords = [];
-            document.getElementById('study-interface').classList.add('hidden');
-            document.getElementById('quiz-interface').classList.remove('hidden');
-            loadQuestion();
-        };
-        function loadQuestion() {
-            const item = quizQueue[quizIdx];
-            document.getElementById('quiz-progress').innerText = `${quizIdx+1}/${quizQueue.length}`;
-            const area = document.getElementById('quiz-options-area'); area.innerHTML = "";
-            const isEng = Math.random() > 0.5;
-            const mainPos = item.posGroups[0];
-            document.getElementById('quiz-question-text').innerText = isEng ? item.word : `(${mainPos.pos}) ${mainPos.trans}`;
-            const correctText = isEng ? `(${mainPos.pos}) ${mainPos.trans}` : item.word;
-            let opts = [correctText];
-            let pool = window.vocabulary.filter(v => v.id !== item.id);
-            pool.sort(() => Math.random() - 0.5);
-            opts.push(...pool.slice(0, 3).map(v => isEng ? `(${v.posGroups[0].pos}) ${v.posGroups[0].trans}` : v.word));
-            opts.sort(() => Math.random() - 0.5);
-            opts.forEach(o => {
-                const b = document.createElement('button'); b.className = 'opt-btn'; b.innerText = o;
-                b.onclick = () => {
-                    if(o === correctText) b.style.background = "var(--success)";
-                    else { b.style.background = "var(--danger)"; wrongWords.push(item); document.querySelectorAll('.opt-btn').forEach(x => { if(x.innerText === correctText) x.style.background = "var(--success)"; }); }
-                    setTimeout(() => { quizIdx++; if(quizIdx < quizQueue.length) loadQuestion(); else showResults(); }, 1200);
-                }; area.appendChild(b);
-            });
-        }
-        function showResults() {
-            document.getElementById('quiz-interface').classList.add('hidden');
-            document.getElementById('result-interface').classList.remove('hidden');
-            document.getElementById('score-text').innerText = `答對：${quizQueue.length - wrongWords.length} 題`;
-            const area = document.getElementById('wrong-words-list'); area.innerHTML = "";
-            wrongWords.forEach(w => {
-                const div = document.createElement('div'); div.className = 'list-item-row';
-                div.innerHTML = `<span><strong>${w.word}</strong> - ${w.posGroups[0].trans}</span>`;
-                area.appendChild(div);
-            });
         }
         window.exitQuiz = function() { document.getElementById('result-interface').classList.add('hidden'); document.getElementById('study-interface').classList.remove('hidden'); window.updateUI(); };
     </script>
