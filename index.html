@@ -8,32 +8,39 @@
         :root { --primary: #4a90e2; --success: #34c759; --danger: #ff3b30; --bg: #f8f9fa; --card-bg: #ffffff; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; color: #333; margin: 0; box-sizing: border-box; }
         .hidden { display: none !important; }
+        
         #login-interface, #study-interface, #quiz-interface, #result-interface { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; text-align: center; }
         .card { width: 100%; min-height: 350px; background: var(--card-bg); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; position: relative; box-sizing: border-box; cursor: pointer; }
+        
         input, select, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 12px; font-size: 1.1rem; font-family: inherit; }
         .primary-btn { padding: 12px 30px; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
         .btn-circle { width: 60px; height: 60px; border-radius: 50%; border: none; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+        
         .chip { padding: 8px 18px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; }
         .chip.active { background: var(--primary); color: white; }
+
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 380px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
         
+        /* 管理清單專用樣式 */
+        .manage-item { display: flex; align-items: center; background: #fff; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; margin-bottom: 0; }
+        .manage-info { flex-grow: 1; text-align: left; }
+        .manage-info b { font-size: 1.1rem; display: block; }
+        .manage-info small { color: #888; }
+        .manage-actions button { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
+
         .pos-entry { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary); position: relative; }
-        .remove-pos-btn { position: absolute; top: 5px; right: 5px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; font-size: 1.2rem; }
+        .remove-pos-btn { position: absolute; top: 5px; right: 5px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; }
         
         .pos-group-display { text-align: left; width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         .pos-header { font-size: 1.3rem; margin-bottom: 8px; font-weight: bold; }
         .pos-tag { color: var(--primary); margin-right: 8px; }
-        .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; word-break: break-word; }
+        .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; }
         .ex-text, .ex-trans { font-size: 1.15rem; line-height: 1.6; color: #333; }
-        .ex-trans { margin-top: 4px; display: block; }
         
         #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; text-align: left; }
-        .list-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f9f9f9; border-radius: 10px; margin-bottom: 8px; }
         .opt-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; background: white; cursor: pointer; margin-bottom: 10px; font-size: 1.1rem; }
-        
-        /* 刪除單元按鈕樣式 */
-        .del-unit-btn { background: #fff; border: 1px solid var(--danger); color: var(--danger); padding: 0 12px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -47,12 +54,11 @@
     <div id="study-interface" class="hidden">
         <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 10px;">
             <span id="user-display" style="font-weight: bold; color: var(--primary);"></span>
-            <button onclick="location.reload()" style="background:none; border:none; color:#999; text-decoration:underline; cursor:pointer;">登出</button>
+            <button onclick="location.reload()" style="background:none; border:none; color:#999; text-decoration:underline;">登出</button>
         </div>
         
         <div style="display:flex; gap:8px; width:100%; margin-bottom:15px;">
             <select id="unit-nav-selector" onchange="window.setUnitMode(this.value)" style="margin-bottom:0; flex-grow: 1;"></select>
-            <button id="unit-delete-trigger" class="del-unit-btn" onclick="window.deleteCurrentUnit()" title="刪除整個單元">🗑️</button>
             <button onclick="window.openAddModal()" style="padding:0 15px; border-radius:10px; border:none; background:var(--success); color:white; cursor:pointer; font-weight:bold;">+</button>
         </div>
 
@@ -91,13 +97,25 @@
     </div>
 
     <div id="manageModal" class="modal">
-        <div class="modal-content">
-            <h3 style="margin-top:0">WordMaster</h3>
-            <button class="primary-btn" style="background:#f39c12; margin-bottom:15px;" onclick="window.openEditFromManage()">✏️ 編輯內容</button>
-            <div id="existing-lists-area" style="max-height:150px; overflow-y:auto; margin-bottom:10px;"></div>
-            <input type="text" id="new-list-name" placeholder="新清單名稱...">
-            <button class="primary-btn" onclick="window.handleCreateAndAdd()">建立並加入</button>
-            <button class="primary-btn" style="background:#888; margin-top:10px;" onclick="window.closeManageModal()">關閉</button>
+        <div class="modal-content" style="width: 95%; max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin:0">單字管理清單</h3>
+                <button onclick="window.closeManageModal()" style="border:none; background:none; font-size:1.5rem;">✕</button>
+            </div>
+            
+            <button id="unit-delete-btn" class="primary-btn" style="background:var(--danger); margin-bottom:20px; display:none;" onclick="window.deleteCurrentUnit()">🗑️ 刪除目前整個單元</button>
+
+            <div id="manage-list-container">
+                </div>
+            
+            <div style="border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
+                <p style="font-size:0.9rem; color:#666;">將目前的單字加入至特定清單：</p>
+                <div id="existing-lists-area" style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;"></div>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="new-list-name" placeholder="建立新清單..." style="margin-bottom:0;">
+                    <button class="primary-btn" style="width:auto; white-space:nowrap;" onclick="window.handleCreateAndAdd()">建立</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -148,12 +166,12 @@
                 if (data) {
                     window.vocabulary = (data.vocabulary || []).map(v => {
                         if (!v.posGroups) { v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: v.ex || '', exTrans: '' }]; }
-                        else { v.posGroups = v.posGroups.map(g => ({ ...g, ex: g.ex || '', exTrans: g.exTrans || '' })); }
+                        if (v.visible === undefined) v.visible = true; // 預設可見
                         return v;
                     });
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Study", posGroups: [{pos: "v.", trans: "學習", ex: "I study English.", exTrans: "我學習英文。"}], note: "歡迎", starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Welcome", posGroups: [{pos: "v.", trans: "歡迎", ex: "", exTrans: ""}], visible: true, starred: false, myLists: [] }];
                     window.saveUserData();
                 }
                 updateUnitSelector();
@@ -167,16 +185,12 @@
         };
 
         window.updateUI = function() {
-            const list = getFilteredList();
+            const list = getFilteredList().filter(v => v.visible); // 只顯示打勾的
             const wd = document.getElementById('word-display');
             const dd = document.getElementById('detail-display');
             const area = document.getElementById('pos-groups-area');
-            const delBtn = document.getElementById('unit-delete-trigger');
-            
-            // 只有在選擇特定單元時才顯示刪除按鈕
-            delBtn.style.display = (window.currentUnit === "all") ? "none" : "flex";
 
-            if (list.length === 0) { wd.innerText = "目前無單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
+            if (list.length === 0) { wd.innerText = "此單元無可見單字"; wd.style.display = 'block'; dd.style.display = 'none'; return; }
             const item = list[window.currentIndex % list.length];
             wd.innerText = item.word;
             area.innerHTML = "";
@@ -188,22 +202,107 @@
             document.getElementById('note-display').style.display = item.note ? "block" : "none";
             dd.style.display = window.isFlipped ? 'block' : 'none';
             wd.style.display = window.isFlipped ? 'none' : 'block';
+            document.getElementById('star-btn').innerText = item.starred ? "★" : "☆";
+            document.getElementById('star-btn').style.color = item.starred ? "#ffd700" : "#333";
             renderFolderBar();
         };
 
-        // --- 核心功能：刪除整個單元 ---
-        window.deleteCurrentUnit = function() {
-            if (window.currentUnit === "all") return;
-            const confirmMsg = `確定要刪除整個「${window.currentUnit}」嗎？\n這將會永久刪除該單元下的所有單字！`;
-            if (confirm(confirmMsg)) {
-                window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit);
-                window.currentUnit = "all"; // 跳回所有單元
-                window.currentIndex = 0;
+        // --- 管理清單功能 ---
+        window.openManageModal = function(e) {
+            if(e) e.stopPropagation();
+            const container = document.getElementById('manage-list-container');
+            const unitDelBtn = document.getElementById('unit-delete-btn');
+            container.innerHTML = "";
+            
+            // 顯示刪除單元按鈕
+            unitDelBtn.style.display = (window.currentUnit === "all") ? "none" : "block";
+            unitDelBtn.innerText = `🗑️ 刪除整個「${window.currentUnit}」`;
+
+            // 取得目前的清單（不考慮勾選狀態，全部列出來編輯）
+            let fullList = window.vocabulary;
+            if (window.currentUnit !== "all") fullList = fullList.filter(v => v.unit === window.currentUnit);
+            if (window.currentCustomList !== "none") fullList = fullList.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
+
+            fullList.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'manage-item';
+                div.innerHTML = `
+                    <input type="checkbox" ${item.visible ? 'checked' : ''} onchange="window.toggleVisibility(${item.id})">
+                    <div class="manage-info">
+                        <b>${item.word}</b>
+                        <small>${item.posGroups[0].trans}</small>
+                    </div>
+                    <div class="manage-actions">
+                        <button onclick="window.quickEdit(${item.id})">✏️</button>
+                        <button onclick="window.quickDelete(${item.id})">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            // 更新清單按鈕區
+            const area = document.getElementById('existing-lists-area'); area.innerHTML = "";
+            window.customLists.forEach(name => {
+                const btn = document.createElement('button');
+                btn.className = 'chip';
+                btn.innerText = name;
+                btn.onclick = () => {
+                    const currentItem = getFilteredList().filter(v => v.visible)[window.currentIndex % getFilteredList().filter(v => v.visible).length];
+                    if (currentItem) {
+                        if(!currentItem.myLists) currentItem.myLists = [];
+                        if(!currentItem.myLists.includes(name)) currentItem.myLists.push(name);
+                        window.saveUserData();
+                        alert(`已加入清單：${name}`);
+                    }
+                };
+                area.appendChild(btn);
+            });
+
+            document.getElementById('manageModal').style.display = 'flex';
+        };
+
+        window.toggleVisibility = function(id) {
+            const item = window.vocabulary.find(v => v.id === id);
+            if (item) {
+                item.visible = !item.visible;
                 window.saveUserData();
-                alert("單元已刪除");
+                window.updateUI();
             }
         };
 
+        window.quickEdit = function(id) {
+            const item = window.vocabulary.find(v => v.id === id);
+            if(!item) return;
+            editingId = id;
+            document.getElementById('edit-word-unit').value = item.unit;
+            document.getElementById('edit-word-eng').value = item.word;
+            document.getElementById('edit-word-note').value = item.note || "";
+            const container = document.getElementById('pos-container');
+            container.innerHTML = "";
+            item.posGroups.forEach(g => window.addPosField(g.trans, g.pos, g.ex, g.exTrans));
+            window.closeManageModal();
+            document.getElementById('delete-btn').style.display = 'block';
+            document.getElementById('wordEditModal').style.display = 'flex';
+        };
+
+        window.quickDelete = function(id) {
+            if(confirm("確定刪除此單字？")) {
+                window.vocabulary = window.vocabulary.filter(v => v.id !== id);
+                window.saveUserData();
+                window.openManageModal(); // 刷新列表
+            }
+        };
+
+        window.deleteCurrentUnit = function() {
+            if (confirm(`確定要刪除整個「${window.currentUnit}」及其所有單字嗎？`)) {
+                window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit);
+                window.currentUnit = "all";
+                window.saveUserData();
+                window.closeManageModal();
+            }
+        };
+
+        // --- 原有功能維持 ---
         window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
             const container = document.getElementById('pos-container');
             const div = document.createElement('div');
@@ -211,20 +310,8 @@
             div.innerHTML = `<button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button><select class="edit-pos-select"><option value="n." ${pos==='n.'?'selected':''}>n.</option><option value="v." ${pos==='v.'?'selected':''}>v.</option><option value="adj." ${pos==='adj.'?'selected':''}>adj.</option><option value="adv." ${pos==='adv.'?'selected':''}>adv.</option><option value="phr." ${pos==='phr.'?'selected':''}>phr.</option></select><input type="text" class="edit-trans-input" placeholder="翻譯" value="${trans}"><textarea class="edit-ex-input" placeholder="例句" rows="2">${ex}</textarea><textarea class="edit-ex-trans-input" placeholder="例句翻譯" rows="1">${exTrans}</textarea>`;
             container.appendChild(div);
         };
-
-        window.openAddModal = function() {
-            editingId = null;
-            document.getElementById('modal-title').innerText = "WordMaster";
-            document.getElementById('delete-btn').style.display = 'none';
-            document.getElementById('pos-container').innerHTML = "";
-            document.getElementById('edit-word-unit').value = (window.currentUnit === "all") ? "" : window.currentUnit;
-            document.getElementById('edit-word-eng').value = "";
-            document.getElementById('edit-word-note').value = "";
-            window.addPosField();
-            document.getElementById('wordEditModal').style.display = 'flex';
-        };
-
-        window.saveWordChange = function() {
+        window.openAddModal = function() { editingId = null; document.getElementById('delete-btn').style.display = 'none'; document.getElementById('pos-container').innerHTML = ""; document.getElementById('edit-word-unit').value = (window.currentUnit==="all"?"":window.currentUnit); document.getElementById('edit-word-eng').value = ""; document.getElementById('edit-word-note').value = ""; window.addPosField(); document.getElementById('wordEditModal').style.display = 'flex'; };
+        window.saveWordChange = function() { 
             const word = document.getElementById('edit-word-eng').value.trim();
             if (!word) return alert("請輸入單字");
             const posGroups = [];
@@ -235,77 +322,86 @@
                 const et = ent.querySelector('.edit-ex-trans-input').value.trim();
                 if (t) posGroups.push({ pos: p, trans: t, ex: e, exTrans: et });
             });
-            if (posGroups.length === 0) return alert("請輸入翻譯");
-            const data = { unit: document.getElementById('edit-word-unit').value || "未分類", word, posGroups, note: document.getElementById('edit-word-note').value.trim() };
+            const data = { unit: document.getElementById('edit-word-unit').value || "未分類", word, posGroups, note: document.getElementById('edit-word-note').value.trim(), visible: true };
             if (editingId) {
                 const idx = window.vocabulary.findIndex(v => v.id === editingId);
                 window.vocabulary[idx] = { ...window.vocabulary[idx], ...data };
             } else {
                 window.vocabulary.push({ id: Date.now(), ...data, starred: false, myLists: [] });
             }
-            window.saveUserData();
-            window.closeEditModal();
+            window.saveUserData(); window.closeEditModal(); 
         };
-
-        window.openEditFromManage = function() {
-            const item = getFilteredList()[window.currentIndex % getFilteredList().length];
-            editingId = item.id;
-            document.getElementById('modal-title').innerText = "WordMaster";
-            document.getElementById('delete-btn').style.display = 'block';
-            document.getElementById('edit-word-unit').value = item.unit;
-            document.getElementById('edit-word-eng').value = item.word;
-            document.getElementById('edit-word-note').value = item.note || "";
-            const container = document.getElementById('pos-container');
-            container.innerHTML = "";
-            item.posGroups.forEach(g => window.addPosField(g.trans, g.pos, g.ex, g.exTrans));
-            window.closeManageModal();
-            document.getElementById('wordEditModal').style.display = 'flex';
+        window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
+        window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
+        window.changeWord = function(n) { const list = getFilteredList().filter(v => v.visible); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
+        window.flipCard = function() { if(getFilteredList().filter(v => v.visible).length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
+        window.toggleStar = function() { 
+            const list = getFilteredList().filter(v => v.visible);
+            const item = list[window.currentIndex % list.length];
+            if (item) { item.starred = !item.starred; window.saveUserData(); window.updateUI(); }
         };
-
+        window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
+        window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.updateUI(); };
+        window.handleCreateAndAdd = function() { const n = document.getElementById('new-list-name').value.trim(); if (n) { if (!window.customLists.includes(n)) window.customLists.push(n); window.saveUserData(); document.getElementById('new-list-name').value = ""; window.openManageModal(); } };
         function getFilteredList() {
             let list = window.vocabulary;
             if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit);
             if (window.currentCustomList !== "none") list = list.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
             return list;
         }
-        window.changeWord = function(n) { const list = getFilteredList(); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
-        window.flipCard = function() { if(getFilteredList().length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
-        window.toggleStar = function() { const item = getFilteredList()[window.currentIndex % getFilteredList().length]; if (item) { item.starred = !item.starred; window.saveUserData(); } };
-        window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.isFlipped = false; window.updateUI(); };
-        window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.isFlipped = false; window.updateUI(); };
-        window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
-        window.deleteWord = function() { if(confirm("確定刪除？")) { window.vocabulary = window.vocabulary.filter(v => v.id !== editingId); window.saveUserData(); window.closeEditModal(); } };
-        window.openManageModal = function(e) {
-            e.stopPropagation();
-            const area = document.getElementById('existing-lists-area'); area.innerHTML = "";
-            window.customLists.forEach(name => {
-                const div = document.createElement('div'); div.className = 'list-item-row';
-                div.innerHTML = `<span>+ ${name}</span><button onclick="window.deleteList('${name}', event)" style="color:red; border:none; background:none; cursor:pointer;">🗑️</button>`;
-                div.querySelector('span').onclick = () => {
-                    const item = getFilteredList()[window.currentIndex % getFilteredList().length];
-                    if (item) { if(!item.myLists) item.myLists=[]; if(!item.myLists.includes(name)) item.myLists.push(name); window.saveUserData(); }
-                    window.closeManageModal();
-                }; area.appendChild(div);
-            });
-            document.getElementById('manageModal').style.display = 'flex';
-        };
-        window.deleteList = function(name, e) { if(e) e.stopPropagation(); if(confirm(`刪除「${name}」？`)) { window.customLists = window.customLists.filter(l => l !== name); window.vocabulary.forEach(v => { if(v.myLists) v.myLists = v.myLists.filter(l => l !== name); }); window.saveUserData(); window.openManageModal({stopPropagation:()=>{}}); } };
-        window.handleCreateAndAdd = function() { const n = document.getElementById('new-list-name').value.trim(); if (n) { if (!window.customLists.includes(n)) window.customLists.push(n); const item = getFilteredList()[window.currentIndex % getFilteredList().length]; if (item) { if(!item.myLists) item.myLists=[]; if(!item.myLists.includes(n)) item.myLists.push(n); } window.saveUserData(); document.getElementById('new-list-name').value = ""; window.closeManageModal(); } };
-        window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
-
         function updateUnitSelector() {
             const s = document.getElementById('unit-nav-selector');
             const units = [...new Set(window.vocabulary.map(v => v.unit))];
             s.innerHTML = '<option value="all">📚 所有單元</option>';
             units.forEach(u => s.innerHTML += `<option value="${u}">📖 ${u}</option>`);
             s.value = window.currentUnit;
-            const dl = document.getElementById('units-datalist'); dl.innerHTML = "";
-            units.forEach(u => dl.innerHTML += `<option value="${u}">`);
         }
         function renderFolderBar() {
             const bar = document.getElementById('custom-folder-bar');
             bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setUnitMode('all'); window.setListMode('none')">全部</button>`;
-            window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="setListMode('${l}')">${l}</button>`; });
+            window.customLists.forEach(l => { bar.innerHTML += `<button class="chip ${window.currentCustomList===l?'active':''}" onclick="window.setListMode('${l}')">${l}</button>`; });
+        }
+        window.startQuiz = function() {
+            quizQueue = getFilteredList().filter(v => v.visible);
+            if (quizQueue.length < 2) return alert("可見單字量不足");
+            quizQueue.sort(() => Math.random() - 0.5);
+            quizIdx = 0; wrongWords = [];
+            document.getElementById('study-interface').classList.add('hidden');
+            document.getElementById('quiz-interface').classList.remove('hidden');
+            loadQuestion();
+        };
+        function loadQuestion() {
+            const item = quizQueue[quizIdx];
+            document.getElementById('quiz-progress').innerText = `${quizIdx+1}/${quizQueue.length}`;
+            const area = document.getElementById('quiz-options-area'); area.innerHTML = "";
+            const isEng = Math.random() > 0.5;
+            const mainPos = item.posGroups[0];
+            document.getElementById('quiz-question-text').innerText = isEng ? item.word : `(${mainPos.pos}) ${mainPos.trans}`;
+            const correctText = isEng ? `(${mainPos.pos}) ${mainPos.trans}` : item.word;
+            let opts = [correctText];
+            let pool = window.vocabulary.filter(v => v.id !== item.id);
+            pool.sort(() => Math.random() - 0.5);
+            opts.push(...pool.slice(0, 3).map(v => isEng ? `(${v.posGroups[0].pos}) ${v.posGroups[0].trans}` : v.word));
+            opts.sort(() => Math.random() - 0.5);
+            opts.forEach(o => {
+                const b = document.createElement('button'); b.className = 'opt-btn'; b.innerText = o;
+                b.onclick = () => {
+                    if(o === correctText) b.style.background = "var(--success)";
+                    else { b.style.background = "var(--danger)"; wrongWords.push(item); document.querySelectorAll('.opt-btn').forEach(x => { if(x.innerText === correctText) x.style.background = "var(--success)"; }); }
+                    setTimeout(() => { quizIdx++; if(quizIdx < quizQueue.length) loadQuestion(); else showResults(); }, 1200);
+                }; area.appendChild(b);
+            });
+        }
+        function showResults() {
+            document.getElementById('quiz-interface').classList.add('hidden');
+            document.getElementById('result-interface').classList.remove('hidden');
+            document.getElementById('score-text').innerText = `答對：${quizQueue.length - wrongWords.length} 題`;
+            const area = document.getElementById('wrong-words-list'); area.innerHTML = "";
+            wrongWords.forEach(w => {
+                const div = document.createElement('div'); div.className = 'list-item-row';
+                div.innerHTML = `<span><strong>${w.word}</strong> - ${w.posGroups[0].trans}</span>`;
+                area.appendChild(div);
+            });
         }
         window.exitQuiz = function() { document.getElementById('result-interface').classList.add('hidden'); document.getElementById('study-interface').classList.remove('hidden'); window.updateUI(); };
     </script>
