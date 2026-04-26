@@ -14,12 +14,15 @@
         /* 單字卡 */
         .card { width: 100%; min-height: 350px; background: var(--card-bg); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; position: relative; box-sizing: border-box; cursor: pointer; }
         
+        /* 字卡上的編輯按鈕 (⋯) */
+        .card-more-btn { position: absolute; top: 20px; right: 20px; font-size: 24px; color: #ccc; padding: 5px; cursor: pointer; z-index: 10; }
+        .card-more-btn:hover { color: var(--primary); }
+
         input, select, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 12px; font-size: 1.1rem; font-family: inherit; }
         
         .primary-btn { padding: 12px 30px; background: var(--primary); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
         .btn-circle { width: 60px; height: 60px; border-radius: 50%; border: none; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; }
         
-        /* 下拉選單旁的控制按鈕 */
         .nav-control-btn { height: 46px; padding: 0 15px; border-radius: 10px; border: none; background: #fff; border: 1px solid #ddd; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         .btn-add { background: var(--success); color: white; border: none; font-weight: bold; }
         
@@ -29,7 +32,6 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 380px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
         
-        /* 管理清單條目 */
         .manage-item { display: flex; align-items: center; background: #f9f9f9; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
         .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; margin-bottom: 0; }
         .manage-info { flex-grow: 1; text-align: left; }
@@ -70,6 +72,8 @@
         </div>
 
         <div class="card" onclick="window.flipCard()">
+            <div class="card-more-btn" onclick="window.openEditFromCard(event)">⋯</div>
+            
             <h1 id="word-display" style="font-size: 3.2rem;">載入中...</h1>
             <div id="detail-display" style="display: none; width: 100%;">
                 <div id="pos-groups-area"></div>
@@ -108,13 +112,10 @@
                 <h3 style="margin:0">單字清單</h3>
                 <button onclick="window.closeManageModal()" style="border:none; background:none; font-size:1.5rem;">✕</button>
             </div>
-            
             <button id="unit-delete-btn" class="primary-btn" style="background:var(--danger); margin-bottom:20px; display:none;" onclick="window.deleteCurrentUnit()">🗑️ 刪除目前整個單元</button>
-
             <div id="manage-list-container"></div>
-            
             <div style="border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
-                <p style="font-size:0.9rem; color:#666;">加入目前的單字至：</p>
+                <p style="font-size:0.9rem; color:#666;">管理自定義清單：</p>
                 <div id="existing-lists-area" style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;"></div>
                 <div style="display:flex; gap:5px;">
                     <input type="text" id="new-list-name" placeholder="建立新清單..." style="margin-bottom:0; flex-grow: 1;">
@@ -176,7 +177,7 @@
                     });
                     window.customLists = data.customLists || [];
                 } else {
-                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Start", posGroups: [{pos: "v.", trans: "開始", ex: "", exTrans: ""}], visible: true, starred: false, myLists: [] }];
+                    window.vocabulary = [{ id: Date.now(), unit: "歡迎", word: "Welcome", posGroups: [{pos: "v.", trans: "歡迎", ex: "", exTrans: ""}], visible: true, starred: false, myLists: [] }];
                     window.saveUserData();
                 }
                 updateUnitSelector();
@@ -212,6 +213,16 @@
             renderFolderBar();
         };
 
+        // --- 字卡專屬編輯功能 (⋯) ---
+        window.openEditFromCard = function(e) {
+            if(e) e.stopPropagation(); // 防止觸發翻牌
+            const visibleList = getFilteredList().filter(v => v.visible);
+            if (visibleList.length === 0) return;
+            const item = visibleList[window.currentIndex % visibleList.length];
+            window.quickEdit(item.id);
+        };
+
+        // --- 清單管理功能 ---
         window.openManageModal = function() {
             const container = document.getElementById('manage-list-container');
             const unitDelBtn = document.getElementById('unit-delete-btn');
@@ -240,8 +251,8 @@
             window.customLists.forEach(name => {
                 const btn = document.createElement('button'); btn.className = 'chip'; btn.innerText = name;
                 btn.onclick = () => {
-                    const currentVisible = getFilteredList().filter(v => v.visible);
-                    const currentItem = currentVisible[window.currentIndex % currentVisible.length];
+                    const visibleList = getFilteredList().filter(v => v.visible);
+                    const currentItem = visibleList[window.currentIndex % visibleList.length];
                     if (currentItem) {
                         if(!currentItem.myLists) currentItem.myLists = [];
                         if(!currentItem.myLists.includes(name)) currentItem.myLists.push(name);
@@ -283,7 +294,7 @@
         };
 
         window.deleteCurrentUnit = function() {
-            if (confirm(`確定要刪除整個「${window.currentUnit}」及其單字？`)) {
+            if (confirm(`確定要刪除整個「${window.currentUnit}」及其所有單字嗎？`)) {
                 window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit);
                 window.currentUnit = "all";
                 window.saveUserData();
@@ -300,6 +311,7 @@
         };
 
         window.openAddModal = function() { editingId = null; document.getElementById('delete-btn').style.display = 'none'; document.getElementById('pos-container').innerHTML = ""; document.getElementById('edit-word-unit').value = (window.currentUnit==="all"?"":window.currentUnit); document.getElementById('edit-word-eng').value = ""; document.getElementById('edit-word-note').value = ""; window.addPosField(); document.getElementById('wordEditModal').style.display = 'flex'; };
+        
         window.saveWordChange = function() { 
             const word = document.getElementById('edit-word-eng').value.trim();
             if (!word) return alert("請輸入單字");
@@ -317,8 +329,10 @@
             }
             window.saveUserData(); window.closeEditModal(); 
         };
+        window.deleteWord = function() { if(confirm("確定刪除？")) { window.vocabulary = window.vocabulary.filter(v => v.id !== editingId); window.saveUserData(); window.closeEditModal(); } };
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
         window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
+        
         window.changeWord = function(n) { const list = getFilteredList().filter(v => v.visible); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
         window.flipCard = function() { if(getFilteredList().filter(v => v.visible).length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
         window.toggleStar = function() { 
@@ -329,6 +343,7 @@
         window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
         window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.updateUI(); };
         window.handleCreateAndAdd = function() { const n = document.getElementById('new-list-name').value.trim(); if (n) { if (!window.customLists.includes(n)) window.customLists.push(n); window.saveUserData(); document.getElementById('new-list-name').value = ""; window.openManageModal(); } };
+        
         function getFilteredList() {
             let list = window.vocabulary;
             if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit);
@@ -351,7 +366,7 @@
         }
         window.startQuiz = function() {
             quizQueue = getFilteredList().filter(v => v.visible);
-            if (quizQueue.length < 2) return alert("可見單字量不足");
+            if (quizQueue.length < 2) return alert("單字量不足");
             quizQueue.sort(() => Math.random() - 0.5);
             quizIdx = 0; wrongWords = [];
             document.getElementById('study-interface').classList.add('hidden');
