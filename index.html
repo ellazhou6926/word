@@ -47,8 +47,13 @@
         .remove-pos-btn { position: absolute; top: 5px; right: 5px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; }
         .manage-item { display: flex; align-items: center; background: #f9f9f9; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
         .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; }
-        .chip { padding: 8px 15px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; display: inline-flex; align-items: center; gap: 6px; }
+        
+        /* 清單 Chips 樣式 */
+        .chip-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 15px; width: 100%; }
+        .chip { padding: 8px 16px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 0.9rem; border: none; transition: all 0.2s; display: flex; align-items: center; gap: 5px; }
         .chip.active { background: var(--primary); color: white; }
+        .chip-del { font-size: 12px; opacity: 0.6; }
+        .chip-del:hover { opacity: 1; color: var(--danger); }
     </style>
 </head>
 <body>
@@ -91,7 +96,8 @@
             <button class="btn-circle" onclick="window.changeWord(1)">→</button>
         </div>
         <button class="primary-btn" onclick="window.startQuiz()">開始測驗</button>
-        <div id="custom-folder-bar" style="margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center;"></div>
+        
+        <div id="main-chip-bar" class="chip-container"></div>
     </div>
 
     <div id="quiz-interface" class="hidden">
@@ -144,11 +150,11 @@
             <div id="manage-list-container" style="max-height: 200px; overflow-y: auto;"></div>
             
             <div style="border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
-                <p style="margin:0 0 10px 0; font-size: 0.9rem; color: #666;">加入自定義清單：</p>
+                <p style="margin:0 0 10px 0; font-size: 0.9rem; color: #666;">點擊下方清單加入/移除單字：</p>
                 <div id="existing-lists-area" style="display: flex; flex-wrap: wrap; margin-bottom: 10px;"></div>
                 <div style="display:flex; gap:5px; margin-top:10px;">
                     <input type="text" id="new-list-name" placeholder="新清單名稱..." style="margin-bottom:0;">
-                    <button class="primary-btn" style="width:auto; margin-top:0; white-space: nowrap;" onclick="window.handleCreateAndAdd()">建立並加入</button>
+                    <button class="primary-btn" style="width:auto; margin-top:0; white-space: nowrap;" onclick="window.handleCreateAndAdd()">建立</button>
                 </div>
             </div>
             <button class="primary-btn" style="background:#888; margin-top:20px; width: 100%;" onclick="window.closeManageModal()">關閉視窗</button>
@@ -190,7 +196,7 @@
             });
         };
 
-        // --- 發音控制 ---
+        // --- 發音與 UI 更新 ---
         function updateVoiceIcon() {
             const btn = document.getElementById('voice-toggle-btn');
             btn.classList.remove('active-us', 'active-uk');
@@ -232,13 +238,110 @@
             }
         };
 
-        // --- 測驗邏輯 ---
+        window.updateUI = function() {
+            const visibleList = getVisibleList();
+            const wd = document.getElementById('word-display');
+            const dd = document.getElementById('detail-display');
+            const area = document.getElementById('pos-groups-area');
+            const ab = document.getElementById('accent-box');
+            updateVoiceIcon();
+            
+            if (visibleList.length === 0) { wd.innerText = "無單字"; wd.style.display = 'block'; dd.style.display = 'none'; ab.style.display='none'; }
+            else {
+                const item = visibleList[window.currentIndex % visibleList.length];
+                wd.innerText = item.word;
+                if (window.voiceMode !== "off") window.speakCurrent();
+                area.innerHTML = "";
+                item.posGroups.forEach(g => {
+                    let exHtml = g.ex ? `<div class="ex-container"><div class="ex-text">${g.ex}</div>${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}<div class="ex-voice-btns"><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-US')">U</button><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-GB')">K</button></div></div>` : "";
+                    area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
+                });
+                document.getElementById('note-display').innerText = item.note || "";
+                document.getElementById('note-display').style.display = item.note ? "block" : "none";
+                dd.style.display = window.isFlipped ? 'block' : 'none';
+                wd.style.display = window.isFlipped ? 'none' : 'block';
+                ab.style.display = window.isFlipped ? 'none' : 'flex';
+            }
+            renderMainChips();
+        };
+
+        // --- 清單管理邏輯 ---
+        function renderMainChips() {
+            const bar = document.getElementById('main-chip-bar');
+            bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setListMode('none')">全部顯示</button>`;
+            window.customLists.forEach(name => {
+                const chip = document.createElement('button');
+                chip.className = `chip ${window.currentCustomList === name ? 'active' : ''}`;
+                chip.innerText = name;
+                chip.onclick = () => window.setListMode(name);
+                bar.appendChild(chip);
+            });
+        }
+
+        window.setListMode = function(name) {
+            window.currentCustomList = name;
+            window.currentIndex = 0;
+            window.updateUI();
+        };
+
+        window.toggleWordInList = function(listName) {
+            const visibleList = getFilteredList().filter(v => v.visible);
+            if (visibleList.length === 0) return;
+            const item = visibleList[window.currentIndex % visibleList.length];
+            if (!item.myLists) item.myLists = [];
+            const idx = item.myLists.indexOf(listName);
+            if (idx === -1) {
+                item.myLists.push(listName);
+                alert(`已加入：${listName}`);
+            } else {
+                item.myLists.splice(idx, 1);
+                alert(`已移除：${listName}`);
+            }
+            window.saveUserData();
+            renderCustomListsArea();
+        };
+
+        function renderCustomListsArea() {
+            const area = document.getElementById('existing-lists-area');
+            area.innerHTML = "";
+            window.customLists.forEach(name => {
+                const chip = document.createElement('button');
+                chip.className = 'chip';
+                chip.innerHTML = `${name} <span class="chip-del" onclick="window.deleteCustomList('${name}', event)">✕</span>`;
+                chip.onclick = () => window.toggleWordInList(name);
+                area.appendChild(chip);
+            });
+        }
+
+        window.handleCreateAndAdd = function() {
+            const name = document.getElementById('new-list-name').value.trim();
+            if (name && !window.customLists.includes(name)) {
+                window.customLists.push(name);
+                window.saveUserData();
+                renderCustomListsArea();
+                renderMainChips();
+            }
+            document.getElementById('new-list-name').value = "";
+        };
+
+        window.deleteCustomList = function(name, e) {
+            e.stopPropagation();
+            if(confirm(`刪除「${name}」？單字不會被刪除。`)) {
+                window.customLists = window.customLists.filter(l => l !== name);
+                window.vocabulary.forEach(v => { if(v.myLists) v.myLists = v.myLists.filter(l => l !== name); });
+                if (window.currentCustomList === name) window.currentCustomList = 'none';
+                window.saveUserData();
+                renderCustomListsArea();
+                renderMainChips();
+            }
+        };
+
+        // --- 測驗、編輯與其餘輔助 ---
         window.startQuiz = function() {
             const visibleList = getVisibleList();
-            if (visibleList.length < 1) return alert("沒有可測驗的單字");
+            if (visibleList.length < 1) return alert("單字量不足");
             quizQueue = [...visibleList].sort(() => Math.random() - 0.5);
-            quizIdx = 0;
-            wrongWords = [];
+            quizIdx = 0; wrongWords = [];
             document.getElementById('study-interface').classList.add('hidden');
             document.getElementById('quiz-interface').classList.remove('hidden');
             loadQuizQuestion();
@@ -249,28 +352,18 @@
             lastQuizAnswerCorrect = true;
             document.getElementById('quiz-progress').innerText = `題目：${quizIdx + 1} / ${quizQueue.length}`;
             const input = document.getElementById('quiz-spelling-input');
-            input.value = "";
-            input.focus();
+            input.value = ""; input.focus();
             window.speakQuizWord();
         }
 
-        window.speakQuizWord = function() {
-            const item = quizQueue[quizIdx];
-            window.speakText(item.word, null, 'en-US');
-        };
+        window.speakQuizWord = function() { window.speakText(quizQueue[quizIdx].word, null, 'en-US'); };
 
         window.submitQuizSpelling = function() {
             const item = quizQueue[quizIdx];
             const input = document.getElementById('quiz-spelling-input').value.trim().toLowerCase();
-            const correct = item.word.toLowerCase();
-
-            if (input === correct) {
-                window.showQuizFeedback(true, "✅ 拼對了！");
-            } else {
-                if (lastQuizAnswerCorrect) {
-                    wrongWords.push(item);
-                    lastQuizAnswerCorrect = false;
-                }
+            if (input === item.word.toLowerCase()) window.showQuizFeedback(true, "✅ 拼對了！");
+            else {
+                if (lastQuizAnswerCorrect) { wrongWords.push(item); lastQuizAnswerCorrect = false; }
                 window.showQuizFeedback(false, `❌ 錯誤！<br>正確答案是：<br><span style="color:var(--primary)">${item.word}</span>`);
             }
         };
@@ -280,19 +373,10 @@
             const icon = document.getElementById('feedback-icon');
             const text = document.getElementById('feedback-text');
             const btn = document.getElementById('feedback-btn');
-            
             overlay.style.display = 'flex';
             text.innerHTML = msg;
-            
-            if (isCorrect) {
-                icon.innerText = "🌟";
-                btn.style.display = 'none';
-                setTimeout(window.handleQuizFeedbackClose, 1000);
-            } else {
-                icon.innerText = "✍️";
-                btn.style.display = 'block';
-                btn.innerText = "再試一次";
-            }
+            if (isCorrect) { icon.innerText = "🌟"; btn.style.display = 'none'; setTimeout(window.handleQuizFeedbackClose, 1000); }
+            else { icon.innerText = "✍️"; btn.style.display = 'block'; btn.innerText = "再試一次"; }
         };
 
         window.handleQuizFeedbackClose = function() {
@@ -303,8 +387,7 @@
                 else showQuizResult();
             } else {
                 const input = document.getElementById('quiz-spelling-input');
-                input.value = "";
-                input.focus();
+                input.value = ""; input.focus();
             }
         };
 
@@ -312,9 +395,9 @@
             document.getElementById('quiz-interface').classList.add('hidden');
             document.getElementById('result-interface').classList.remove('hidden');
             const score = quizQueue.length - [...new Set(wrongWords)].length;
-            document.getElementById('score-text').innerText = `掌握程度：${score} / ${quizQueue.length}`;
+            document.getElementById('score-text').innerText = `掌握度：${score} / ${quizQueue.length}`;
             const area = document.getElementById('wrong-words-list');
-            area.innerHTML = "<h4>需要加強的單字：</h4>";
+            area.innerHTML = "<h4>答錯過的單字：</h4>";
             [...new Set(wrongWords)].forEach(w => {
                 area.innerHTML += `<div class="manage-item"><b>${w.word}</b> - ${w.posGroups[0].trans}</div>`;
             });
@@ -327,34 +410,26 @@
             window.updateUI();
         };
 
-        // --- 基礎更新 UI 與輔助 ---
-        window.updateUI = function() {
-            const visibleList = getVisibleList();
-            const wd = document.getElementById('word-display');
-            const dd = document.getElementById('detail-display');
-            const area = document.getElementById('pos-groups-area');
-            const ab = document.getElementById('accent-box');
-            updateVoiceIcon();
-            if (visibleList.length === 0) { wd.innerText = "無單字"; wd.style.display = 'block'; dd.style.display = 'none'; ab.style.display='none'; return; }
-            const item = visibleList[window.currentIndex % visibleList.length];
-            wd.innerText = item.word;
-            if (window.voiceMode !== "off") window.speakCurrent();
-            area.innerHTML = "";
-            item.posGroups.forEach(g => {
-                let exHtml = g.ex ? `<div class="ex-container"><div class="ex-text">${g.ex}</div>${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}<div class="ex-voice-btns"><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-US')">U</button><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-GB')">K</button></div></div>` : "";
-                area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
-            });
-            document.getElementById('note-display').innerText = item.note || "";
-            dd.style.display = window.isFlipped ? 'block' : 'none';
-            wd.style.display = window.isFlipped ? 'none' : 'block';
-            ab.style.display = window.isFlipped ? 'none' : 'flex';
-            renderFolderBar();
+        window.openAddModal = function() { 
+            editingId = null; document.getElementById('pos-container').innerHTML = ""; 
+            document.getElementById('edit-word-unit').value = (window.currentUnit==="all"?"":window.currentUnit); 
+            document.getElementById('edit-word-eng').value = ""; document.getElementById('edit-word-note').value = ""; 
+            window.addPosField(); document.getElementById('wordEditModal').style.display = 'flex'; 
         };
 
-        window.saveUserData = function() { if (!window.currentUser) return; set(ref(db, 'users/' + window.currentUser), { vocabulary: window.vocabulary, customLists: window.customLists }); };
-        window.flipCard = function() { if(getFilteredList().filter(v => v.visible).length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
-        window.changeWord = function(n) { const list = getFilteredList().filter(v => v.visible); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
-        window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
+        window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
+            const div = document.createElement('div'); div.className = 'pos-entry';
+            div.innerHTML = `<button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button><select class="ps"><option value="n." ${pos==='n.'?'selected':''}>n.</option><option value="v." ${pos==='v.'?'selected':''}>v.</option><option value="adj." ${pos==='adj.'?'selected':''}>adj.</option><option value="adv." ${pos==='adv.'?'selected':''}>adv.</option><option value="phr." ${pos==='phr.'?'selected':''}>phr.</option></select><input type="text" class="tr" placeholder="翻譯" value="${trans}"><textarea class="ex" placeholder="例句" rows="2">${ex}</textarea><textarea class="extr" placeholder="例句翻譯" rows="1">${exTrans}</textarea>`;
+            document.getElementById('pos-container').appendChild(div);
+        };
+
+        window.saveWordChange = function() {
+            const w = document.getElementById('edit-word-eng').value.trim();
+            const grps = []; document.querySelectorAll('.pos-entry').forEach(d => { grps.push({pos: d.querySelector('.ps').value, trans: d.querySelector('.tr').value, ex: d.querySelector('.ex').value, exTrans: d.querySelector('.extr').value}); });
+            if(editingId) { const idx = window.vocabulary.findIndex(v=>v.id===editingId); window.vocabulary[idx] = {...window.vocabulary[idx], word:w, posGroups:grps, unit: document.getElementById('edit-word-unit').value}; }
+            else { window.vocabulary.push({ id: Date.now(), word: w, posGroups: grps, unit: document.getElementById('edit-word-unit').value || "未分類", visible: true, myLists: [] }); }
+            window.saveUserData(); window.closeEditModal(); window.updateUI();
+        };
 
         window.openManageModal = function() {
             const container = document.getElementById('manage-list-container'); container.innerHTML = "";
@@ -369,45 +444,7 @@
             document.getElementById('manageModal').style.display = 'flex';
         };
 
-        function renderCustomListsArea() {
-            const area = document.getElementById('existing-lists-area'); area.innerHTML = "";
-            window.customLists.forEach(name => {
-                const chip = document.createElement('button'); chip.className = 'chip'; chip.innerHTML = `${name} <span onclick="window.deleteCustomList('${name}', event)">✕</span>`;
-                area.appendChild(chip);
-            });
-        }
-
-        window.handleCreateAndAdd = function() {
-            const name = document.getElementById('new-list-name').value.trim();
-            if (name && !window.customLists.includes(name)) { window.customLists.push(name); window.saveUserData(); renderCustomListsArea(); }
-            document.getElementById('new-list-name').value = "";
-        };
-
-        window.deleteCustomList = function(name, e) { e.stopPropagation(); if(confirm(`刪除「${name}」？`)) { window.customLists = window.customLists.filter(l => l !== name); window.saveUserData(); renderCustomListsArea(); } };
-        window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
         window.toggleVisibility = function(id) { const item = window.vocabulary.find(v => v.id === id); if (item) { item.visible = !item.visible; window.saveUserData(); window.updateUI(); } };
-        
-        window.openAddModal = function() { 
-            editingId = null; document.getElementById('pos-container').innerHTML = ""; 
-            document.getElementById('edit-word-unit').value = (window.currentUnit==="all"?"":window.currentUnit); 
-            document.getElementById('edit-word-eng').value = ""; document.getElementById('edit-word-note').value = ""; 
-            window.addPosField(); document.getElementById('wordEditModal').style.display = 'flex'; 
-        };
-
-        window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
-            const div = document.createElement('div'); div.className = 'pos-entry';
-            div.innerHTML = `<button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button><select class="ps"><option value="n." ${pos==='n.'?'selected':''}>n.</option><option value="v." ${pos==='v.'?'selected':''}>v.</option><option value="adj." ${pos==='adj.'?'selected':''}>adj.</option></select><input type="text" class="tr" placeholder="翻譯" value="${trans}"><textarea class="ex" placeholder="例句" rows="2">${ex}</textarea><textarea class="extr" placeholder="例句翻譯" rows="1">${exTrans}</textarea>`;
-            document.getElementById('pos-container').appendChild(div);
-        };
-
-        window.saveWordChange = function() {
-            const w = document.getElementById('edit-word-eng').value.trim();
-            const grps = []; document.querySelectorAll('.pos-entry').forEach(d => { grps.push({pos: d.querySelector('.ps').value, trans: d.querySelector('.tr').value, ex: d.querySelector('.ex').value, exTrans: d.querySelector('.extr').value}); });
-            if(editingId) { const idx = window.vocabulary.findIndex(v=>v.id===editingId); window.vocabulary[idx] = {...window.vocabulary[idx], word:w, posGroups:grps, unit: document.getElementById('edit-word-unit').value}; }
-            else { window.vocabulary.push({id:Date.now(), word:w, posGroups:grps, unit:document.getElementById('edit-word-unit').value || "未分類", visible:true, myLists:[]}); }
-            window.saveUserData(); window.closeEditModal(); window.updateUI();
-        };
-
         window.quickEdit = function(id) {
             const item = window.vocabulary.find(v => v.id === id); if(!item) return; editingId = id;
             document.getElementById('edit-word-unit').value = item.unit; document.getElementById('edit-word-eng').value = item.word; document.getElementById('edit-word-note').value = item.note || "";
@@ -416,14 +453,34 @@
             document.getElementById('manageModal').style.display = 'none'; document.getElementById('wordEditModal').style.display = 'flex';
         };
 
+        window.saveUserData = function() { if (!window.currentUser) return; set(ref(db, 'users/' + window.currentUser), { vocabulary: window.vocabulary, customLists: window.customLists }); };
+        window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
-        window.deleteWord = function() { if(confirm("刪除？")) { window.vocabulary = window.vocabulary.filter(v=>v.id!==editingId); window.saveUserData(); window.closeEditModal(); window.updateUI(); } };
-        window.deleteCurrentUnit = function() { if (confirm(`確定刪除整個「${window.currentUnit}」？`)) { window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit); window.currentUnit = "all"; window.saveUserData(); window.closeManageModal(); } };
+        window.flipCard = function() { if(getFilteredList().filter(v => v.visible).length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
+        window.changeWord = function(n) { const list = getFilteredList().filter(v => v.visible); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
+        window.setUnitMode = function(u) { window.currentUnit = u; window.currentCustomList = "none"; window.currentIndex = 0; window.updateUI(); };
         window.openEditFromCard = function(e) { e.stopPropagation(); const list = getVisibleList(); if(list.length > 0) window.quickEdit(list[window.currentIndex % list.length].id); };
-        function getVisibleList() { let list = window.vocabulary; if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); return list.filter(v => v.visible); }
-        function getFilteredList() { let list = window.vocabulary; if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); return list; }
-        function updateUnitSelector() { const s = document.getElementById('unit-nav-selector'); const units = [...new Set(window.vocabulary.map(v => v.unit))]; s.innerHTML = '<option value="all">📚 所有單元</option>'; units.forEach(u => s.innerHTML += `<option value="${u}">📖 ${u}</option>`); s.value = window.currentUnit; }
-        function renderFolderBar() {}
+        function getVisibleList() { 
+            let list = window.vocabulary; 
+            if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); 
+            if (window.currentCustomList !== "none") list = list.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
+            return list.filter(v => v.visible); 
+        }
+        function getFilteredList() { 
+            let list = window.vocabulary; 
+            if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); 
+            if (window.currentCustomList !== "none") list = list.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
+            return list; 
+        }
+        function updateUnitSelector() { 
+            const s = document.getElementById('unit-nav-selector'); 
+            const units = [...new Set(window.vocabulary.map(v => v.unit))]; 
+            s.innerHTML = '<option value="all">📚 所有單元</option>'; 
+            units.forEach(u => s.innerHTML += `<option value="${u}">📖 ${u}</option>`); 
+            s.value = window.currentUnit; 
+        }
+        window.deleteWord = function() { if(confirm("刪除單字？")) { window.vocabulary = window.vocabulary.filter(v=>v.id!==editingId); window.saveUserData(); window.closeEditModal(); window.updateUI(); } };
+        window.deleteCurrentUnit = function() { if (confirm(`確定要刪除整個「${window.currentUnit}」？`)) { window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit); window.currentUnit = "all"; window.saveUserData(); window.closeManageModal(); window.updateUI(); } };
         window.toggleStar = function() { const list = getVisibleList(); if (list.length > 0) { const item = list[window.currentIndex % list.length]; item.starred = !item.starred; window.saveUserData(); window.updateUI(); } };
     </script>
 </body>
