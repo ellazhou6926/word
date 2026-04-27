@@ -10,7 +10,6 @@
         .hidden { display: none !important; }
         #login-interface, #study-interface, #quiz-interface, #result-interface { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; text-align: center; }
         
-        /* 單字卡 */
         .card { width: 100%; min-height: 380px; background: var(--card-bg); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; position: relative; box-sizing: border-box; cursor: pointer; }
         .card-more-btn { position: absolute; top: 20px; right: 20px; font-size: 24px; color: #ccc; padding: 5px; cursor: pointer; z-index: 10; }
         
@@ -29,21 +28,22 @@
         .pos-header { font-size: 1.3rem; margin-bottom: 8px; font-weight: bold; }
         .pos-tag { color: var(--primary); margin-right: 8px; }
         
+        /* 例句區塊 */
         .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; position: relative; }
-        .ex-text, .ex-trans { font-size: 1.1rem; line-height: 1.5; color: #333; padding-right: 60px; }
+        .ex-text { font-size: 1.1rem; line-height: 1.5; color: #333; padding-right: 60px; }
+        .ex-trans { font-size: 1rem; color: #666; margin-top: 4px; padding-right: 60px; }
         .ex-voice-btns { position: absolute; top: 10px; right: 8px; display: flex; flex-direction: column; gap: 4px; }
         .ex-voice-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ddd; background: white; font-size: 10px; font-weight: bold; color: #666; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; text-align: left; }
         
-        /* 彈窗：確保 z-index 足夠高 */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 95%; max-width: 400px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; position: relative; }
         
+        .pos-entry { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary); position: relative; }
+        .remove-pos-btn { position: absolute; top: 5px; right: 5px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; }
         .manage-item { display: flex; align-items: center; background: #f9f9f9; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
-        .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; margin-bottom: 0; }
-        .chip { padding: 8px 15px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; display: inline-flex; align-items: center; gap: 6px; }
-        .chip.active { background: var(--primary); color: white; }
+        .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -86,19 +86,18 @@
             <button class="btn-circle" onclick="window.changeWord(1)">→</button>
         </div>
         <button class="primary-btn" onclick="window.startQuiz()">開始測驗</button>
-        <div id="custom-folder-bar" style="margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center;"></div>
     </div>
 
     <div id="wordEditModal" class="modal">
         <div class="modal-content">
-            <h3 id="modal-title" style="margin-top:0">編輯內容</h3>
+            <h3 id="modal-title" style="margin-top:0">編輯單字</h3>
             <input type="text" id="edit-word-unit" placeholder="單元">
             <input type="text" id="edit-word-eng" placeholder="英文單字">
             <div id="pos-container"></div>
-            <button class="primary-btn" style="background:#eee; color:#333; margin-bottom:15px;" onclick="window.addPosField()">+ 新增翻譯與例句</button>
+            <button class="primary-btn" style="background:#eee; color:#333; margin-bottom:15px;" onclick="window.addPosField()">+ 新增翻譯與例句組</button>
             <textarea id="edit-word-note" placeholder="備註" rows="2"></textarea>
-            <button class="primary-btn" style="background:var(--success)" onclick="window.saveWordChange()">儲存</button>
-            <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除</button>
+            <button class="primary-btn" style="background:var(--success)" onclick="window.saveWordChange()">儲存雲端</button>
+            <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除單字</button>
             <button class="primary-btn" style="background:#888; margin-top:10px;" onclick="window.closeEditModal()">取消</button>
         </div>
     </div>
@@ -111,19 +110,9 @@
             </div>
             <button id="unit-delete-btn" class="primary-btn" style="background:var(--danger); margin-bottom:20px; display:none;" onclick="window.deleteCurrentUnit()">🗑️ 刪除整個單元</button>
             <div id="manage-list-container"></div>
-            <div style="border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
-                <div id="existing-lists-area"></div>
-                <div style="display:flex; gap:5px; margin-top:10px;">
-                    <input type="text" id="new-list-name" placeholder="新清單..." style="margin-bottom:0;">
-                    <button class="primary-btn" style="width:auto; margin-top:0;" onclick="window.handleCreateAndAdd()">建立</button>
-                </div>
-            </div>
-            <button class="primary-btn" style="background:#888; margin-top:20px; width: 100%;" onclick="window.closeManageModal()">關閉視窗</button>
+            <button class="primary-btn" style="background:#888; margin-top:20px; width: 100%;" onclick="window.closeManageModal()">關閉</button>
         </div>
     </div>
-
-    <div id="quiz-interface" class="hidden"><div id="quiz-progress"></div><div class="card" style="cursor: default;"><div id="quiz-question-text"></div><div id="quiz-options-area"></div></div></div>
-    <div id="result-interface" class="hidden"><h2>結束</h2><p id="score-text"></p><div id="wrong-words-list"></div><button class="primary-btn" onclick="window.exitQuiz()">返回</button></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -133,7 +122,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        window.currentUser = ""; window.vocabulary = []; window.customLists = []; window.currentUnit = "all"; window.currentCustomList = "none"; window.currentIndex = 0; window.isFlipped = false; window.voiceMode = "off";
+        window.currentUser = ""; window.vocabulary = []; window.currentUnit = "all"; window.currentIndex = 0; window.isFlipped = false; window.voiceMode = "off";
         let editingId = null;
 
         window.login = function() {
@@ -148,10 +137,8 @@
                     window.vocabulary = (data.vocabulary || []).map(v => {
                         if (!v.posGroups) v.posGroups = [{ pos: v.pos || 'n.', trans: v.trans || '無翻譯', ex: '', exTrans: '' }];
                         if (v.visible === undefined) v.visible = true;
-                        if (!v.myLists) v.myLists = [];
                         return v;
                     });
-                    window.customLists = data.customLists || [];
                 }
                 updateUnitSelector();
                 window.updateUI();
@@ -168,7 +155,7 @@
 
         window.speakText = function(text, e, langCode) {
             if(e) e.stopPropagation();
-            const list = getFilteredList().filter(v => v.visible);
+            const list = getVisibleList();
             if (list.length === 0 && !text) return;
             const targetText = text || list[window.currentIndex % list.length].word;
             const targetLang = langCode || (window.voiceMode === "uk" ? "en-GB" : "en-US");
@@ -180,7 +167,7 @@
         };
 
         window.speakCurrent = function() {
-            const list = getFilteredList().filter(v => v.visible);
+            const list = getVisibleList();
             if (list.length === 0) return;
             const item = list[window.currentIndex % list.length];
             const lang = (window.voiceMode === "uk") ? "en-GB" : "en-US";
@@ -192,7 +179,7 @@
         };
 
         window.updateUI = function() {
-            const visibleList = getFilteredList().filter(v => v.visible);
+            const visibleList = getVisibleList();
             const wd = document.getElementById('word-display');
             const dd = document.getElementById('detail-display');
             const area = document.getElementById('pos-groups-area');
@@ -203,20 +190,64 @@
             if (window.voiceMode !== "off") window.speakCurrent();
             area.innerHTML = "";
             item.posGroups.forEach(g => {
-                let exHtml = g.ex ? `<div class="ex-container"><div class="ex-text">${g.ex}</div><div class="ex-voice-btns"><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-US')">U</button><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-GB')">K</button></div></div>` : "";
+                let exHtml = "";
+                if (g.ex) {
+                    exHtml = `
+                        <div class="ex-container">
+                            <div class="ex-text">${g.ex}</div>
+                            ${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}
+                            <div class="ex-voice-btns">
+                                <button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-US')">U</button>
+                                <button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-GB')">K</button>
+                            </div>
+                        </div>`;
+                }
                 area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
             });
             document.getElementById('note-display').innerText = item.note || "";
             dd.style.display = window.isFlipped ? 'block' : 'none';
             wd.style.display = window.isFlipped ? 'none' : 'block';
             ab.style.display = window.isFlipped ? 'none' : 'flex';
-            renderFolderBar();
         };
 
-        window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
+        window.saveUserData = function() { if (!window.currentUser) return; set(ref(db, 'users/' + window.currentUser), { vocabulary: window.vocabulary }); };
+        window.flipCard = function() { if(getVisibleList().length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
+        window.changeWord = function(n) { const list = getVisibleList(); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
+        window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
+        
+        window.openAddModal = function() { 
+            editingId = null; 
+            document.getElementById('pos-container').innerHTML = ""; 
+            document.getElementById('edit-word-unit').value = (window.currentUnit==="all"?"":window.currentUnit); 
+            document.getElementById('edit-word-eng').value = ""; 
+            document.getElementById('edit-word-note').value = ""; 
+            window.addPosField(); 
+            document.getElementById('wordEditModal').style.display = 'flex'; 
+        };
+
+        window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
+            const div = document.createElement('div'); div.className = 'pos-entry';
+            div.innerHTML = `
+                <button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button>
+                <select class="ps"><option value="n." ${pos==='n.'?'selected':''}>n.</option><option value="v." ${pos==='v.'?'selected':''}>v.</option><option value="adj." ${pos==='adj.'?'selected':''}>adj.</option></select>
+                <input type="text" class="tr" placeholder="翻譯" value="${trans}">
+                <textarea class="ex" placeholder="例句" rows="2">${ex}</textarea>
+                <textarea class="extr" placeholder="例句翻譯" rows="1">${exTrans}</textarea>`;
+            document.getElementById('pos-container').appendChild(div);
+        };
+
+        window.saveWordChange = function() {
+            const w = document.getElementById('edit-word-eng').value.trim();
+            const grps = []; document.querySelectorAll('.pos-entry').forEach(d => { 
+                grps.push({pos: d.querySelector('.ps').value, trans: d.querySelector('.tr').value, ex: d.querySelector('.ex').value, exTrans: d.querySelector('.extr').value}); 
+            });
+            if(editingId) { const idx = window.vocabulary.findIndex(v=>v.id===editingId); window.vocabulary[idx] = {...window.vocabulary[idx], word:w, posGroups:grps, unit: document.getElementById('edit-word-unit').value}; }
+            else { window.vocabulary.push({id:Date.now(), word:w, posGroups:grps, unit:document.getElementById('edit-word-unit').value || "未分類", visible:true}); }
+            window.saveUserData(); window.closeEditModal(); window.updateUI();
+        };
+
         window.openManageModal = function() {
             const container = document.getElementById('manage-list-container'); container.innerHTML = "";
-            const unitDelBtn = document.getElementById('unit-delete-btn'); unitDelBtn.style.display = (window.currentUnit === "all") ? "none" : "block";
             let scopeList = window.vocabulary.filter(v => window.currentUnit === 'all' || v.unit === window.currentUnit);
             scopeList.forEach(item => {
                 const div = document.createElement('div'); div.className = 'manage-item';
@@ -226,46 +257,22 @@
             document.getElementById('manageModal').style.display = 'flex';
         };
 
-        window.toggleVisibility = function(id) { 
-            const item = window.vocabulary.find(v => v.id === id); 
-            if (item) { item.visible = !item.visible; window.saveUserData(); window.updateUI(); } 
-        };
-
+        window.toggleVisibility = function(id) { const item = window.vocabulary.find(v => v.id === id); if (item) { item.visible = !item.visible; window.saveUserData(); window.updateUI(); } };
         window.quickEdit = function(id) {
             const item = window.vocabulary.find(v => v.id === id); if(!item) return; editingId = id;
             document.getElementById('edit-word-unit').value = item.unit; document.getElementById('edit-word-eng').value = item.word; document.getElementById('edit-word-note').value = item.note || "";
             document.getElementById('pos-container').innerHTML = "";
-            item.posGroups.forEach(g => window.addPosField(g.trans, g.pos, g.ex));
-            document.getElementById('manageModal').style.display = 'none';
-            document.getElementById('delete-btn').style.display = 'block';
-            document.getElementById('wordEditModal').style.display = 'flex';
+            item.posGroups.forEach(g => window.addPosField(g.trans, g.pos, g.ex, g.exTrans));
+            document.getElementById('manageModal').style.display = 'none'; document.getElementById('wordEditModal').style.display = 'flex';
         };
 
-        window.saveUserData = function() { if (!window.currentUser) return; set(ref(db, 'users/' + window.currentUser), { vocabulary: window.vocabulary, customLists: window.customLists }); };
-        window.flipCard = function() { if(getFilteredList().filter(v => v.visible).length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
-        window.changeWord = function(n) { const list = getFilteredList().filter(v => v.visible); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
-        window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
-        window.openAddModal = function() { editingId = null; document.getElementById('delete-btn').style.display = 'none'; document.getElementById('pos-container').innerHTML = ""; document.getElementById('edit-word-unit').value = (window.currentUnit==="all"?"":window.currentUnit); document.getElementById('edit-word-eng').value = ""; document.getElementById('edit-word-note').value = ""; window.addPosField(); document.getElementById('wordEditModal').style.display = 'flex'; };
-        window.addPosField = function(trans = "", pos = "n.", ex = "") {
-            const div = document.createElement('div'); div.className = 'pos-entry';
-            div.innerHTML = `<button class="remove-pos-btn" onclick="this.parentElement.remove()">✕</button><select class="edit-pos-select"><option value="n." ${pos==='n.'?'selected':''}>n.</option><option value="v." ${pos==='v.'?'selected':''}>v.</option></select><input type="text" class="edit-trans-input" placeholder="翻譯" value="${trans}"><textarea class="edit-ex-input" placeholder="例句">${ex}</textarea>`;
-            document.getElementById('pos-container').appendChild(div);
-        };
-        window.saveWordChange = function() {
-            const w = document.getElementById('edit-word-eng').value.trim();
-            const grps = []; document.querySelectorAll('.pos-entry').forEach(d => { grps.push({pos: d.querySelector('.edit-pos-select').value, trans: d.querySelector('.edit-trans-input').value, ex: d.querySelector('.edit-ex-input').value}); });
-            if(editingId) { const idx = window.vocabulary.findIndex(v=>v.id===editingId); window.vocabulary[idx] = {...window.vocabulary[idx], word:w, posGroups:grps, unit: document.getElementById('edit-word-unit').value}; }
-            else { window.vocabulary.push({id:Date.now(), word:w, posGroups:grps, unit:document.getElementById('edit-word-unit').value || "未分類", visible:true}); }
-            window.saveUserData(); document.getElementById('wordEditModal').style.display='none'; window.updateUI();
-        };
+        window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
-        window.deleteWord = function() { if(confirm("刪除？")) { window.vocabulary = window.vocabulary.filter(v=>v.id!==editingId); window.saveUserData(); window.closeEditModal(); window.updateUI(); } };
         window.openEditFromCard = function(e) { e.stopPropagation(); const list = getVisibleList(); if(list.length > 0) window.quickEdit(list[window.currentIndex % list.length].id); };
         function getVisibleList() { let list = window.vocabulary; if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); return list.filter(v => v.visible); }
-        function getFilteredList() { let list = window.vocabulary; if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); return list; }
         function updateUnitSelector() { const s = document.getElementById('unit-nav-selector'); const units = [...new Set(window.vocabulary.map(v => v.unit))]; s.innerHTML = '<option value="all">📚 所有單元</option>'; units.forEach(u => s.innerHTML += `<option value="${u}">📖 ${u}</option>`); s.value = window.currentUnit; }
-        function renderFolderBar() {} // 依需求保留或移除
-        window.startQuiz = function() { alert("功能開發中"); };
+        window.toggleStar = function() { const list = getVisibleList(); if (list.length > 0) { const item = list[window.currentIndex % list.length]; item.starred = !item.starred; window.saveUserData(); window.updateUI(); } };
+        window.startQuiz = function() { alert("測驗功能請待後續指令開發"); };
     </script>
 </body>
 </html>
