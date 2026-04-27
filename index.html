@@ -18,25 +18,23 @@
         .btn-add { background: var(--success); color: white; border: none; font-weight: bold; }
         .btn-voice { transition: all 0.3s; }
         .btn-voice.active { background: #fff176; border-color: #fbc02d; }
-        .chip { padding: 8px 15px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; display: inline-flex; align-items: center; gap: 6px; }
-        .chip.active { background: var(--primary); color: white; }
-        .chip-del { font-weight: bold; padding: 2px 5px; border-radius: 50%; background: rgba(0,0,0,0.1); font-size: 12px; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 380px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; }
-        .manage-item { display: flex; align-items: center; background: #f9f9f9; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
-        .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; margin-bottom: 0; }
-        .manage-info { flex-grow: 1; text-align: left; }
-        .manage-info b { font-size: 1.1rem; display: block; word-break: break-all; }
-        .manage-actions button { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
-        .pos-entry { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary); position: relative; }
-        .remove-pos-btn { position: absolute; top: 5px; right: 5px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; }
+        
+        /* 背面顯示樣式優化 */
         .pos-group-display { text-align: left; width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
         .pos-header { font-size: 1.3rem; margin-bottom: 8px; font-weight: bold; }
         .pos-tag { color: var(--primary); margin-right: 8px; }
-        .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; }
+        
+        /* 例句區塊：增加點擊回饋 */
+        .ex-container { background: #f3f4f6; padding: 12px; border-radius: 10px; margin-top: 5px; transition: background 0.2s; position: relative; }
+        .ex-container:active { background: #e0e0e0; }
+        .ex-container::after { content: "🔊"; position: absolute; top: 5px; right: 8px; font-size: 0.8rem; opacity: 0.3; }
         .ex-text, .ex-trans { font-size: 1.15rem; line-height: 1.6; color: #333; }
+        
         #note-display { color: #777; font-size: 1.05rem; border-top: 1px dashed #ccc; padding-top: 10px; font-style: italic; width: 100%; text-align: left; }
-        .opt-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; background: white; cursor: pointer; margin-bottom: 10px; font-size: 1.1rem; }
+        .chip { padding: 8px 15px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; display: inline-flex; align-items: center; gap: 6px; }
+        .chip.active { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
@@ -62,7 +60,7 @@
 
         <div class="card" onclick="window.flipCard()">
             <div class="card-more-btn" onclick="window.openEditFromCard(event)">⋯</div>
-            <h1 id="word-display" style="font-size: 3.2rem;" onclick="window.speakWord(event)">載入中...</h1>
+            <h1 id="word-display" style="font-size: 3.2rem;" onclick="window.speakText(this.innerText, event)">載入中...</h1>
             <div id="detail-display" style="display: none; width: 100%;">
                 <div id="pos-groups-area"></div>
                 <div id="note-display"></div>
@@ -86,7 +84,7 @@
             <datalist id="units-datalist"></datalist>
             <input type="text" id="edit-word-eng" placeholder="英文單字">
             <div id="pos-container"></div>
-            <button class="primary-btn" style="background:#eee; color:#333; margin-bottom:15px;" onclick="window.addPosField()">+ 新增詞性與翻譯</button>
+            <button class="primary-btn" style="background:#eee; color:#333; margin-bottom:15px;" onclick="window.addPosField()">+ 新增詞性、翻譯與例句</button>
             <textarea id="edit-word-note" placeholder="備註" rows="2"></textarea>
             <button class="primary-btn" style="background:var(--success)" onclick="window.saveWordChange()">儲存雲端</button>
             <button id="delete-btn" class="primary-btn" style="background:var(--danger); display:none;" onclick="window.deleteWord()">刪除單字</button>
@@ -145,7 +143,7 @@
         window.currentCustomList = "none";
         window.currentIndex = 0;
         window.isFlipped = false;
-        window.autoVoice = false; // 發音模式開關
+        window.autoVoice = false;
         let editingId = null;
         let quizQueue = [], quizIdx = 0, wrongWords = [];
 
@@ -172,27 +170,39 @@
             });
         };
 
-        // --- 發音核心功能 ---
+        // --- 發音功能優化 ---
         window.toggleVoiceMode = function() {
             window.autoVoice = !window.autoVoice;
             const btn = document.getElementById('voice-toggle-btn');
             btn.innerText = window.autoVoice ? "🔊" : "🔇";
             btn.classList.toggle('active', window.autoVoice);
-            if (window.autoVoice) window.speakWord();
+            if (window.autoVoice) window.speakCurrent();
         };
 
-        window.speakWord = function(e) {
-            if(e) e.stopPropagation(); // 防止點擊發音時觸發翻牌
+        window.speakText = function(text, e) {
+            if(e) e.stopPropagation(); 
+            if(!text) return;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        };
+
+        window.speakCurrent = function() {
             const visibleList = getFilteredList().filter(v => v.visible);
             if (visibleList.length === 0) return;
-            const text = visibleList[window.currentIndex % visibleList.length].word;
+            const item = visibleList[window.currentIndex % visibleList.length];
             
-            // 使用瀏覽器語音
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'en-US'; // 設定美式英語
-            utterance.rate = 0.9;      // 語速稍微慢一點點比較清楚
-            window.speechSynthesis.cancel(); // 停止目前正在說的話
-            window.speechSynthesis.speak(utterance);
+            if (!window.isFlipped) {
+                // 正面：只讀單字
+                window.speakText(item.word);
+            } else {
+                // 背面：讀單字 + 讀第一個例句 (如果有)
+                let firstEx = item.posGroups.find(g => g.ex)?.ex || "";
+                let fullSpeech = item.word + ". " + firstEx;
+                window.speakText(fullSpeech);
+            }
         };
 
         window.saveUserData = function() {
@@ -210,13 +220,18 @@
             const item = visibleList[window.currentIndex % visibleList.length];
             wd.innerText = item.word;
             
-            // 自動發音邏輯：僅在正面英文時觸發
-            if (window.autoVoice && !window.isFlipped) window.speakWord();
+            // 自動發音
+            if (window.autoVoice) window.speakCurrent();
 
             area.innerHTML = "";
             item.posGroups.forEach(g => {
-                let exHtml = g.ex ? `<div class="ex-container"><div class="ex-text">${g.ex}</div>${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}</div>` : "";
-                area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
+                let exHtml = g.ex ? `<div class="ex-container" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event)"><div class="ex-text">${g.ex}</div>${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}</div>` : "";
+                area.innerHTML += `
+                    <div class="pos-group-display">
+                        <div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>
+                        ${exHtml}
+                    </div>
+                `;
             });
             document.getElementById('note-display').innerText = item.note || "";
             document.getElementById('note-display').style.display = item.note ? "block" : "none";
@@ -227,6 +242,12 @@
             renderFolderBar();
         };
 
+        window.flipCard = function() { 
+            if(getFilteredList().filter(v => v.visible).length===0) return; 
+            window.isFlipped = !window.isFlipped; 
+            window.updateUI(); 
+        };
+
         window.changeWord = function(n) { 
             const list = getFilteredList().filter(v => v.visible); 
             if(list.length===0) return; 
@@ -235,7 +256,7 @@
             window.updateUI(); 
         };
 
-        // --- 以下為原有管理/編輯邏輯 ---
+        // --- 其餘管理/編輯邏輯 (維持不變) ---
         window.openEditFromCard = function(e) { if(e) e.stopPropagation(); const visibleList = getFilteredList().filter(v => v.visible); if (visibleList.length === 0) return; window.quickEdit(visibleList[window.currentIndex % visibleList.length].id); };
         window.openManageModal = function() {
             const container = document.getElementById('manage-list-container'); container.innerHTML = "";
@@ -265,7 +286,7 @@
             window.closeManageModal(); document.getElementById('delete-btn').style.display = 'block'; document.getElementById('wordEditModal').style.display = 'flex';
         };
         window.quickDelete = function(id) { if(confirm("確定刪除此單字？")) { window.vocabulary = window.vocabulary.filter(v => v.id !== id); window.saveUserData(); window.openManageModal(); } };
-        window.deleteCustomList = function(name, e) { if(e) e.stopPropagation(); if(confirm(`刪除清單「${name}」？`)) { window.customLists = window.customLists.filter(l => l !== name); window.vocabulary.forEach(v => { if(v.myLists) v.myLists = v.myLists.filter(l => l !== name); }); window.saveUserData(); window.openManageModal(); } };
+        window.deleteCustomList = function(name, e) { if(e) e.stopPropagation(); if(confirm(`確定刪除清單「${name}」？`)) { window.customLists = window.customLists.filter(l => l !== name); window.vocabulary.forEach(v => { if(v.myLists) v.myLists = v.myLists.filter(l => l !== name); }); window.saveUserData(); window.openManageModal(); } };
         window.deleteCurrentUnit = function() { if (confirm(`確定要刪除整個「${window.currentUnit}」？`)) { window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit); window.currentUnit = "all"; window.saveUserData(); window.closeManageModal(); } };
         window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
             const container = document.getElementById('pos-container'); const div = document.createElement('div'); div.className = 'pos-entry';
@@ -285,7 +306,6 @@
         window.deleteWord = function() { if(confirm("確定刪除？")) { window.vocabulary = window.vocabulary.filter(v => v.id !== editingId); window.saveUserData(); window.closeEditModal(); } };
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
         window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
-        window.flipCard = function() { if(getFilteredList().filter(v => v.visible).length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
         window.toggleStar = function() { const list = getFilteredList().filter(v => v.visible); const item = list[window.currentIndex % list.length]; if (item) { item.starred = !item.starred; window.saveUserData(); window.updateUI(); } };
         window.setUnitMode = function(u) { window.currentUnit = u; window.currentCustomList = "none"; window.currentIndex = 0; window.updateUI(); };
         window.setListMode = function(l) { window.currentCustomList = l; window.currentIndex = 0; window.updateUI(); };
