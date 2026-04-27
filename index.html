@@ -136,22 +136,14 @@
             });
         };
 
-        // --- 星號切換與顯示邏輯 (修復重點) ---
+        // --- 發音與更新 ---
         window.toggleStar = function() {
             const visibleList = getVisibleList();
             if (visibleList.length === 0) return;
-            const currentItem = visibleList[window.currentIndex % visibleList.length];
-            
-            // 切換狀態
-            currentItem.starred = !currentItem.starred;
-            
-            // 同步雲端
+            const item = visibleList[window.currentIndex % visibleList.length];
+            item.starred = !item.starred;
             window.saveUserData();
-            
-            // 更新 UI
-            const starBtn = document.getElementById('star-btn');
-            starBtn.innerText = currentItem.starred ? "★" : "☆";
-            starBtn.style.color = currentItem.starred ? "#ffd700" : "#333";
+            window.updateUI();
         };
 
         window.updateUI = function() {
@@ -162,44 +154,87 @@
             const ab = document.getElementById('accent-box');
             const starBtn = document.getElementById('star-btn');
 
-            if (visibleList.length === 0) { 
-                wd.innerText = "無單字"; wd.style.display = 'block'; dd.style.display = 'none'; ab.style.display='none'; 
+            updateVoiceIcon();
+            if (visibleList.length === 0) {
+                wd.innerText = "無符合單字"; wd.style.display = 'block'; dd.style.display = 'none'; ab.style.display='none';
                 starBtn.innerText = "☆"; starBtn.style.color = "#ccc";
-                return; 
+            } else {
+                const item = visibleList[window.currentIndex % visibleList.length];
+                wd.innerText = item.word;
+                starBtn.innerText = item.starred ? "★" : "☆";
+                starBtn.style.color = item.starred ? "#ffd700" : "#333";
+                if (window.voiceMode !== "off") window.speakCurrent();
+                area.innerHTML = "";
+                item.posGroups.forEach(g => {
+                    let exHtml = g.ex ? `<div class="ex-container"><div class="ex-text">${g.ex}</div>${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}<div class="ex-voice-btns"><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-US')">U</button><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-GB')">K</button></div></div>` : "";
+                    area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
+                });
+                document.getElementById('note-display').innerText = item.note || "";
+                document.getElementById('note-display').style.display = item.note ? "block" : "none";
+                dd.style.display = window.isFlipped ? 'block' : 'none';
+                wd.style.display = window.isFlipped ? 'none' : 'block';
+                ab.style.display = window.isFlipped ? 'none' : 'flex';
             }
-
-            const item = visibleList[window.currentIndex % visibleList.length];
-            wd.innerText = item.word;
-            
-            // 更新星星按鈕狀態
-            starBtn.innerText = item.starred ? "★" : "☆";
-            starBtn.style.color = item.starred ? "#ffd700" : "#333";
-
-            if (window.voiceMode !== "off") window.speakCurrent();
-            area.innerHTML = "";
-            item.posGroups.forEach(g => {
-                let exHtml = g.ex ? `<div class="ex-container"><div class="ex-text">${g.ex}</div>${g.exTrans ? `<div class="ex-trans">${g.exTrans}</div>` : ""}<div class="ex-voice-btns"><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-US')">U</button><button class="ex-voice-btn" onclick="window.speakText('${g.ex.replace(/'/g, "\\'")}', event, 'en-GB')">K</button></div></div>` : "";
-                area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
-            });
-            document.getElementById('note-display').innerText = item.note || "";
-            document.getElementById('note-display').style.display = item.note ? "block" : "none";
-            dd.style.display = window.isFlipped ? 'block' : 'none';
-            wd.style.display = window.isFlipped ? 'none' : 'block';
-            ab.style.display = window.isFlipped ? 'none' : 'flex';
             renderMainChips();
         };
 
-        // --- 其餘基礎功能保持一致 ---
+        // --- 清單標籤邏輯優化 ---
+        function renderMainChips() {
+            const bar = document.getElementById('main-chip-bar');
+            bar.innerHTML = "";
+            
+            // 基礎分類：全部、星號
+            const baseTypes = [
+                { id: 'none', label: '全部' },
+                { id: 'starred_only', label: '⭐ 星號標記' }
+            ];
+
+            baseTypes.forEach(type => {
+                const chip = document.createElement('button');
+                chip.className = `chip ${window.currentCustomList === type.id ? 'active' : ''}`;
+                chip.innerText = type.label;
+                chip.onclick = () => window.setListMode(type.id);
+                bar.appendChild(chip);
+            });
+
+            // 自定義清單
+            window.customLists.forEach(name => {
+                const chip = document.createElement('button');
+                chip.className = `chip ${window.currentCustomList === name ? 'active' : ''}`;
+                chip.innerText = name;
+                chip.onclick = () => window.setListMode(name);
+                bar.appendChild(chip);
+            });
+        }
+
+        window.setListMode = function(name) {
+            window.currentCustomList = name;
+            window.currentIndex = 0;
+            window.isFlipped = false;
+            window.updateUI();
+        };
+
+        function getVisibleList() { 
+            let list = window.vocabulary; 
+            if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); 
+            
+            if (window.currentCustomList === "starred_only") {
+                list = list.filter(v => v.starred);
+            } else if (window.currentCustomList !== "none") {
+                list = list.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
+            }
+            return list.filter(v => v.visible); 
+        }
+
+        // --- 其餘 Firebase 與 管理邏輯 (保持不變) ---
         window.saveUserData = function() { if (!window.currentUser) return; set(ref(db, 'users/' + window.currentUser), { vocabulary: window.vocabulary, customLists: window.customLists }); };
         function updateVoiceIcon() { const btn = document.getElementById('voice-toggle-btn'); btn.classList.remove('active-us', 'active-uk'); if (window.voiceMode === "us") { btn.innerText = "🔊 US"; btn.classList.add('active-us'); } else if (window.voiceMode === "uk") { btn.innerText = "🔊 UK"; btn.classList.add('active-uk'); } else { btn.innerText = "🔇"; } }
         window.cycleVoiceMode = function() { if (window.voiceMode === "off") window.voiceMode = "us"; else if (window.voiceMode === "us") window.voiceMode = "uk"; else window.voiceMode = "off"; updateVoiceIcon(); if (window.voiceMode !== "off") window.speakCurrent(); };
-        window.speakText = function(text, e, langCode) { if(e) e.stopPropagation(); const list = getVisibleList(); if (list.length === 0 && !text) return; const targetText = text || list[window.currentIndex % list.length].word; const utterance = new SpeechSynthesisUtterance(targetText); utterance.lang = langCode || (window.voiceMode === "uk" ? "en-GB" : "en-US"); utterance.rate = 0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(utterance); };
+        window.speakText = function(text, e, langCode) { if(e) e.stopPropagation(); const list = getVisibleList(); if (list.length === 0 && !text) return; const targetText = text || list[window.currentIndex % list.length].word; const ut = new SpeechSynthesisUtterance(targetText); ut.lang = langCode || (window.voiceMode === "uk" ? "en-GB" : "en-US"); ut.rate = 0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(ut); };
         window.speakCurrent = function() { const list = getVisibleList(); if (list.length === 0) return; const item = list[window.currentIndex % list.length]; const lang = (window.voiceMode === "uk") ? "en-GB" : "en-US"; if (!window.isFlipped) window.speakText(item.word, null, lang); else { let firstEx = item.posGroups.find(g => g.ex)?.ex || ""; window.speakText(item.word + ". " + firstEx, null, lang); } };
         window.flipCard = function() { if(getVisibleList().length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
         window.changeWord = function(n) { const list = getVisibleList(); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
         window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
-        window.setListMode = function(name) { window.currentCustomList = name; window.currentIndex = 0; window.updateUI(); };
-        function renderMainChips() { const bar = document.getElementById('main-chip-bar'); bar.innerHTML = `<button class="chip ${window.currentCustomList==='none'?'active':''}" onclick="window.setListMode('none')">全部</button>`; window.customLists.forEach(name => { const chip = document.createElement('button'); chip.className = `chip ${window.currentCustomList === name ? 'active' : ''}`; chip.innerText = name; chip.onclick = () => window.setListMode(name); bar.appendChild(chip); }); }
         window.openManageModal = function() {
             const container = document.getElementById('manage-list-container'); container.innerHTML = "";
             window.vocabulary.filter(v => window.currentUnit === 'all' || v.unit === window.currentUnit).forEach(item => {
@@ -228,12 +263,6 @@
         window.deleteWord = function() { if(confirm("刪除單字？")) { window.vocabulary = window.vocabulary.filter(v=>v.id!==editingId); window.saveUserData(); window.closeEditModal(); window.updateUI(); } };
         window.deleteCurrentUnit = function() { if (confirm(`確定刪除整個單元？`)) { window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit); window.currentUnit = "all"; window.saveUserData(); window.closeManageModal(); window.updateUI(); } };
         window.openEditFromCard = function(e) { e.stopPropagation(); const list = getVisibleList(); if(list.length > 0) window.quickEdit(list[window.currentIndex % list.length].id); };
-        function getVisibleList() { 
-            let list = window.vocabulary; 
-            if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); 
-            if (window.currentCustomList !== "none") list = list.filter(v => v.myLists && v.myLists.includes(window.currentCustomList));
-            return list.filter(v => v.visible); 
-        }
         function updateUnitSelector() { const s = document.getElementById('unit-nav-selector'); const units = [...new Set(window.vocabulary.map(v => v.unit))]; s.innerHTML = '<option value="all">📚 所有單元</option>'; units.forEach(u => s.innerHTML += `<option value="${u}">📖 ${u}</option>`); s.value = window.currentUnit; }
         window.startQuiz = function() { const visibleList = getVisibleList(); if (visibleList.length < 1) return alert("單字量不足"); quizQueue = [...visibleList].sort(() => Math.random() - 0.5); quizIdx = 0; wrongWords = []; document.getElementById('study-interface').classList.add('hidden'); document.getElementById('quiz-interface').classList.remove('hidden'); loadQuizQuestion(); };
         function loadQuizQuestion() { const item = quizQueue[quizIdx]; lastQuizAnswerCorrect = true; document.getElementById('quiz-progress').innerText = `題目：${quizIdx + 1} / ${quizQueue.length}`; const input = document.getElementById('quiz-spelling-input'); input.value = ""; input.focus(); window.speakQuizWord(); }
