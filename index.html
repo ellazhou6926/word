@@ -10,6 +10,7 @@
         .hidden { display: none !important; }
         #login-interface, #study-interface, #quiz-interface, #result-interface { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; text-align: center; }
         
+        /* 單字卡 */
         .card { width: 100%; min-height: 380px; background: var(--card-bg); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 25px; position: relative; box-sizing: border-box; cursor: pointer; }
         .card-more-btn { position: absolute; top: 20px; right: 20px; font-size: 24px; color: #ccc; padding: 5px; cursor: pointer; z-index: 10; }
         
@@ -62,7 +63,7 @@
         
         <div style="display:flex; gap:6px; width:100%; margin-bottom:15px; align-items: center;">
             <select id="unit-nav-selector" onchange="window.setUnitMode(this.value)" style="margin-bottom:0; flex-grow: 1; height: 46px;"></select>
-            <button id="voice-toggle-btn" class="nav-control-btn btn-voice" onclick="window.cycleVoiceMode()">控制</button>
+            <button id="voice-toggle-btn" class="nav-control-btn btn-voice" onclick="window.cycleVoiceMode()">🔇</button>
             <button class="nav-control-btn" onclick="window.openManageModal()">☰</button>
             <button class="nav-control-btn" style="background:var(--success); color:white; border:none;" onclick="window.openAddModal()">+</button>
         </div>
@@ -110,7 +111,7 @@
             </div>
             <button id="unit-delete-btn" class="primary-btn" style="background:var(--danger); margin-bottom:20px; display:none;" onclick="window.deleteCurrentUnit()">🗑️ 刪除整個單元</button>
             <div id="manage-list-container"></div>
-            <button class="primary-btn" style="background:#888; margin-top:20px; width: 100%;" onclick="window.closeManageModal()">關閉</button>
+            <button class="primary-btn" style="background:#888; margin-top:20px; width: 100%;" onclick="window.closeManageModal()">關閉視窗</button>
         </div>
     </div>
 
@@ -122,7 +123,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        window.currentUser = ""; window.vocabulary = []; window.currentUnit = "all"; window.currentIndex = 0; window.isFlipped = false; window.voiceMode = "off";
+        window.currentUser = ""; window.vocabulary = []; window.customLists = []; window.currentUnit = "all"; window.currentCustomList = "none"; window.currentIndex = 0; window.isFlipped = false; window.voiceMode = "off";
         let editingId = null;
 
         window.login = function() {
@@ -145,11 +146,20 @@
             });
         };
 
-        window.cycleVoiceMode = function() {
+        // --- 發音控制邏輯修正 ---
+        function updateVoiceIcon() {
             const btn = document.getElementById('voice-toggle-btn');
-            if (window.voiceMode === "off") { window.voiceMode = "us"; btn.innerText = "🔊 US"; btn.classList.add('active-us'); }
-            else if (window.voiceMode === "us") { window.voiceMode = "uk"; btn.innerText = "🔊 UK"; btn.classList.replace('active-us', 'active-uk'); }
-            else { window.voiceMode = "off"; btn.innerText = "🔇"; btn.classList.remove('active-uk'); }
+            btn.classList.remove('active-us', 'active-uk');
+            if (window.voiceMode === "us") { btn.innerText = "🔊 US"; btn.classList.add('active-us'); }
+            else if (window.voiceMode === "uk") { btn.innerText = "🔊 UK"; btn.classList.add('active-uk'); }
+            else { btn.innerText = "🔇"; }
+        }
+
+        window.cycleVoiceMode = function() {
+            if (window.voiceMode === "off") { window.voiceMode = "us"; }
+            else if (window.voiceMode === "us") { window.voiceMode = "uk"; }
+            else { window.voiceMode = "off"; }
+            updateVoiceIcon();
             if (window.voiceMode !== "off") window.speakCurrent();
         };
 
@@ -184,10 +194,15 @@
             const dd = document.getElementById('detail-display');
             const area = document.getElementById('pos-groups-area');
             const ab = document.getElementById('accent-box');
+            
+            updateVoiceIcon(); // 每次 UI 更新都確保圖示正確
+
             if (visibleList.length === 0) { wd.innerText = "無單字"; wd.style.display = 'block'; dd.style.display = 'none'; ab.style.display='none'; return; }
             const item = visibleList[window.currentIndex % visibleList.length];
             wd.innerText = item.word;
+            
             if (window.voiceMode !== "off") window.speakCurrent();
+
             area.innerHTML = "";
             item.posGroups.forEach(g => {
                 let exHtml = "";
@@ -205,6 +220,7 @@
                 area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
             });
             document.getElementById('note-display').innerText = item.note || "";
+            document.getElementById('note-display').style.display = item.note ? "block" : "none";
             dd.style.display = window.isFlipped ? 'block' : 'none';
             wd.style.display = window.isFlipped ? 'none' : 'block';
             ab.style.display = window.isFlipped ? 'none' : 'flex';
@@ -216,13 +232,10 @@
         window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
         
         window.openAddModal = function() { 
-            editingId = null; 
-            document.getElementById('pos-container').innerHTML = ""; 
+            editingId = null; document.getElementById('pos-container').innerHTML = ""; 
             document.getElementById('edit-word-unit').value = (window.currentUnit==="all"?"":window.currentUnit); 
-            document.getElementById('edit-word-eng').value = ""; 
-            document.getElementById('edit-word-note').value = ""; 
-            window.addPosField(); 
-            document.getElementById('wordEditModal').style.display = 'flex'; 
+            document.getElementById('edit-word-eng').value = ""; document.getElementById('edit-word-note').value = ""; 
+            window.addPosField(); document.getElementById('wordEditModal').style.display = 'flex'; 
         };
 
         window.addPosField = function(trans = "", pos = "n.", ex = "", exTrans = "") {
@@ -248,6 +261,7 @@
 
         window.openManageModal = function() {
             const container = document.getElementById('manage-list-container'); container.innerHTML = "";
+            const unitDelBtn = document.getElementById('unit-delete-btn'); unitDelBtn.style.display = (window.currentUnit === "all") ? "none" : "block";
             let scopeList = window.vocabulary.filter(v => window.currentUnit === 'all' || v.unit === window.currentUnit);
             scopeList.forEach(item => {
                 const div = document.createElement('div'); div.className = 'manage-item';
@@ -268,11 +282,13 @@
 
         window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
+        window.deleteWord = function() { if(confirm("刪除？")) { window.vocabulary = window.vocabulary.filter(v=>v.id!==editingId); window.saveUserData(); window.closeEditModal(); window.updateUI(); } };
+        window.deleteCurrentUnit = function() { if (confirm(`確定要刪除整個「${window.currentUnit}」？`)) { window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit); window.currentUnit = "all"; window.saveUserData(); window.closeManageModal(); } };
         window.openEditFromCard = function(e) { e.stopPropagation(); const list = getVisibleList(); if(list.length > 0) window.quickEdit(list[window.currentIndex % list.length].id); };
         function getVisibleList() { let list = window.vocabulary; if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); return list.filter(v => v.visible); }
         function updateUnitSelector() { const s = document.getElementById('unit-nav-selector'); const units = [...new Set(window.vocabulary.map(v => v.unit))]; s.innerHTML = '<option value="all">📚 所有單元</option>'; units.forEach(u => s.innerHTML += `<option value="${u}">📖 ${u}</option>`); s.value = window.currentUnit; }
         window.toggleStar = function() { const list = getVisibleList(); if (list.length > 0) { const item = list[window.currentIndex % list.length]; item.starred = !item.starred; window.saveUserData(); window.updateUI(); } };
-        window.startQuiz = function() { alert("測驗功能請待後續指令開發"); };
+        window.startQuiz = function() { alert("測驗功能開發中"); };
     </script>
 </body>
 </html>
