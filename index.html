@@ -39,11 +39,14 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
         .modal-content { background: white; padding: 25px; border-radius: 24px; width: 95%; max-width: 400px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; text-align: left; position: relative; }
         
+        /* 測驗反饋浮窗 */
+        #quiz-feedback-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .feedback-box { background: white; padding: 30px; border-radius: 24px; width: 80%; max-width: 300px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+
         .pos-entry { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary); position: relative; }
         .remove-pos-btn { position: absolute; top: 5px; right: 5px; color: var(--danger); background: none; border: none; cursor: pointer; font-weight: bold; }
         .manage-item { display: flex; align-items: center; background: #f9f9f9; padding: 12px; border-radius: 12px; margin-bottom: 10px; }
-        .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; margin-bottom: 0; }
-        
+        .manage-item input[type="checkbox"] { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; }
         .chip { padding: 8px 15px; border-radius: 20px; background: #e0e0e0; cursor: pointer; font-size: 14px; border: none; margin: 4px; display: inline-flex; align-items: center; gap: 6px; }
         .chip.active { background: var(--primary); color: white; }
     </style>
@@ -88,6 +91,33 @@
             <button class="btn-circle" onclick="window.changeWord(1)">→</button>
         </div>
         <button class="primary-btn" onclick="window.startQuiz()">開始測驗</button>
+        <div id="custom-folder-bar" style="margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center;"></div>
+    </div>
+
+    <div id="quiz-interface" class="hidden">
+        <div id="quiz-progress" style="margin-bottom: 15px; font-weight: bold; color: var(--primary);"></div>
+        <div class="card" style="cursor: default;">
+            <h2 style="margin-top:0">聽音拼字</h2>
+            <button class="primary-btn" style="background:#f39c12; width:auto; margin-bottom: 20px;" onclick="window.speakQuizWord()">🔊 重聽單字</button>
+            <input type="text" id="quiz-spelling-input" placeholder="請拼出單字並按 Enter" style="text-align:center; font-size:1.5rem; letter-spacing:1px;" onkeydown="if(event.key==='Enter') window.submitQuizSpelling()">
+            <button class="primary-btn" onclick="window.submitQuizSpelling()">送出答案</button>
+        </div>
+        <button class="primary-btn" style="background:#888; margin-top:20px;" onclick="window.exitQuiz()">結束測驗</button>
+    </div>
+
+    <div id="quiz-feedback-overlay">
+        <div class="feedback-box">
+            <div id="feedback-icon" style="font-size: 3rem; margin-bottom: 15px;"></div>
+            <div id="feedback-text" style="font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; line-height: 1.4;"></div>
+            <button id="feedback-btn" class="primary-btn" onclick="window.handleQuizFeedbackClose()">繼續</button>
+        </div>
+    </div>
+
+    <div id="result-interface" class="hidden">
+        <h2>測驗結束</h2>
+        <p id="score-text" style="font-size: 1.5rem; font-weight:bold;"></p>
+        <div id="wrong-words-list" style="width:100%; max-height: 300px; overflow-y: auto;"></div>
+        <button class="primary-btn" onclick="window.exitQuiz()">返回學習模式</button>
     </div>
 
     <div id="wordEditModal" class="modal">
@@ -133,8 +163,9 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        window.currentUser = ""; window.vocabulary = []; window.customLists = []; window.currentUnit = "all"; window.currentIndex = 0; window.isFlipped = false; window.voiceMode = "off";
+        window.currentUser = ""; window.vocabulary = []; window.customLists = []; window.currentUnit = "all"; window.currentCustomList = "none"; window.currentIndex = 0; window.isFlipped = false; window.voiceMode = "off";
         let editingId = null;
+        let quizQueue = []; let quizIdx = 0; let wrongWords = []; let lastQuizAnswerCorrect = true;
 
         window.login = function() {
             const name = document.getElementById('user-name-input').value.trim();
@@ -159,6 +190,7 @@
             });
         };
 
+        // --- 發音控制 ---
         function updateVoiceIcon() {
             const btn = document.getElementById('voice-toggle-btn');
             btn.classList.remove('active-us', 'active-uk');
@@ -200,6 +232,102 @@
             }
         };
 
+        // --- 測驗邏輯 ---
+        window.startQuiz = function() {
+            const visibleList = getVisibleList();
+            if (visibleList.length < 1) return alert("沒有可測驗的單字");
+            quizQueue = [...visibleList].sort(() => Math.random() - 0.5);
+            quizIdx = 0;
+            wrongWords = [];
+            document.getElementById('study-interface').classList.add('hidden');
+            document.getElementById('quiz-interface').classList.remove('hidden');
+            loadQuizQuestion();
+        };
+
+        function loadQuizQuestion() {
+            const item = quizQueue[quizIdx];
+            lastQuizAnswerCorrect = true;
+            document.getElementById('quiz-progress').innerText = `題目：${quizIdx + 1} / ${quizQueue.length}`;
+            const input = document.getElementById('quiz-spelling-input');
+            input.value = "";
+            input.focus();
+            window.speakQuizWord();
+        }
+
+        window.speakQuizWord = function() {
+            const item = quizQueue[quizIdx];
+            window.speakText(item.word, null, 'en-US');
+        };
+
+        window.submitQuizSpelling = function() {
+            const item = quizQueue[quizIdx];
+            const input = document.getElementById('quiz-spelling-input').value.trim().toLowerCase();
+            const correct = item.word.toLowerCase();
+
+            if (input === correct) {
+                window.showQuizFeedback(true, "✅ 拼對了！");
+            } else {
+                if (lastQuizAnswerCorrect) {
+                    wrongWords.push(item);
+                    lastQuizAnswerCorrect = false;
+                }
+                window.showQuizFeedback(false, `❌ 錯誤！<br>正確答案是：<br><span style="color:var(--primary)">${item.word}</span>`);
+            }
+        };
+
+        window.showQuizFeedback = function(isCorrect, msg) {
+            const overlay = document.getElementById('quiz-feedback-overlay');
+            const icon = document.getElementById('feedback-icon');
+            const text = document.getElementById('feedback-text');
+            const btn = document.getElementById('feedback-btn');
+            
+            overlay.style.display = 'flex';
+            text.innerHTML = msg;
+            
+            if (isCorrect) {
+                icon.innerText = "🌟";
+                btn.style.display = 'none';
+                setTimeout(window.handleQuizFeedbackClose, 1000);
+            } else {
+                icon.innerText = "✍️";
+                btn.style.display = 'block';
+                btn.innerText = "再試一次";
+            }
+        };
+
+        window.handleQuizFeedbackClose = function() {
+            document.getElementById('quiz-feedback-overlay').style.display = 'none';
+            if (document.getElementById('feedback-icon').innerText === "🌟") {
+                quizIdx++;
+                if (quizIdx < quizQueue.length) loadQuizQuestion();
+                else showQuizResult();
+            } else {
+                const input = document.getElementById('quiz-spelling-input');
+                input.value = "";
+                input.focus();
+            }
+        };
+
+        function showQuizResult() {
+            document.getElementById('quiz-interface').classList.add('hidden');
+            document.getElementById('result-interface').classList.remove('hidden');
+            const score = quizQueue.length - [...new Set(wrongWords)].length;
+            document.getElementById('score-text').innerText = `掌握程度：${score} / ${quizQueue.length}`;
+            const area = document.getElementById('wrong-words-list');
+            area.innerHTML = "<h4>需要加強的單字：</h4>";
+            [...new Set(wrongWords)].forEach(w => {
+                area.innerHTML += `<div class="manage-item"><b>${w.word}</b> - ${w.posGroups[0].trans}</div>`;
+            });
+        }
+
+        window.exitQuiz = function() {
+            document.getElementById('quiz-interface').classList.add('hidden');
+            document.getElementById('result-interface').classList.add('hidden');
+            document.getElementById('study-interface').classList.remove('hidden');
+            window.updateUI();
+        };
+
+        // --- 基礎更新 UI 與輔助 ---
         window.updateUI = function() {
             const visibleList = getVisibleList();
             const wd = document.getElementById('word-display');
@@ -217,15 +345,15 @@
                 area.innerHTML += `<div class="pos-group-display"><div class="pos-header"><span class="pos-tag">(${g.pos})</span>${g.trans}</div>${exHtml}</div>`;
             });
             document.getElementById('note-display').innerText = item.note || "";
-            document.getElementById('note-display').style.display = item.note ? "block" : "none";
             dd.style.display = window.isFlipped ? 'block' : 'none';
             wd.style.display = window.isFlipped ? 'none' : 'block';
             ab.style.display = window.isFlipped ? 'none' : 'flex';
+            renderFolderBar();
         };
 
         window.saveUserData = function() { if (!window.currentUser) return; set(ref(db, 'users/' + window.currentUser), { vocabulary: window.vocabulary, customLists: window.customLists }); };
-        window.flipCard = function() { if(getVisibleList().length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
-        window.changeWord = function(n) { const list = getVisibleList(); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
+        window.flipCard = function() { if(getFilteredList().filter(v => v.visible).length===0) return; window.isFlipped = !window.isFlipped; window.updateUI(); };
+        window.changeWord = function(n) { const list = getFilteredList().filter(v => v.visible); if(list.length===0) return; window.currentIndex = (window.currentIndex + n + list.length) % list.length; window.isFlipped = false; window.updateUI(); };
         window.setUnitMode = function(u) { window.currentUnit = u; window.currentIndex = 0; window.updateUI(); };
 
         window.openManageModal = function() {
@@ -243,23 +371,19 @@
 
         function renderCustomListsArea() {
             const area = document.getElementById('existing-lists-area'); area.innerHTML = "";
-            window.customLists.forEach(listName => {
-                const chip = document.createElement('button'); chip.className = 'chip';
-                chip.innerHTML = `${listName} <span onclick="window.deleteCustomList('${listName}', event)">✕</span>`;
-                chip.onclick = () => window.toggleWordInList(listName);
+            window.customLists.forEach(name => {
+                const chip = document.createElement('button'); chip.className = 'chip'; chip.innerHTML = `${name} <span onclick="window.deleteCustomList('${name}', event)">✕</span>`;
                 area.appendChild(chip);
             });
         }
 
         window.handleCreateAndAdd = function() {
             const name = document.getElementById('new-list-name').value.trim();
-            if (!name) return;
-            if (!window.customLists.includes(name)) { window.customLists.push(name); window.saveUserData(); }
+            if (name && !window.customLists.includes(name)) { window.customLists.push(name); window.saveUserData(); renderCustomListsArea(); }
             document.getElementById('new-list-name').value = "";
-            renderCustomListsArea();
         };
 
-        window.deleteCustomList = function(name, e) { e.stopPropagation(); if(confirm(`刪除清單「${name}」？`)) { window.customLists = window.customLists.filter(l => l !== name); window.vocabulary.forEach(v => { if(v.myLists) v.myLists = v.myLists.filter(l => l !== name); }); window.saveUserData(); renderCustomListsArea(); } };
+        window.deleteCustomList = function(name, e) { e.stopPropagation(); if(confirm(`刪除「${name}」？`)) { window.customLists = window.customLists.filter(l => l !== name); window.saveUserData(); renderCustomListsArea(); } };
         window.closeManageModal = function() { document.getElementById('manageModal').style.display = 'none'; };
         window.toggleVisibility = function(id) { const item = window.vocabulary.find(v => v.id === id); if (item) { item.visible = !item.visible; window.saveUserData(); window.updateUI(); } };
         
@@ -294,12 +418,13 @@
 
         window.closeEditModal = function() { document.getElementById('wordEditModal').style.display = 'none'; };
         window.deleteWord = function() { if(confirm("刪除？")) { window.vocabulary = window.vocabulary.filter(v=>v.id!==editingId); window.saveUserData(); window.closeEditModal(); window.updateUI(); } };
-        window.deleteCurrentUnit = function() { if (confirm(`確定要刪除整個「${window.currentUnit}」？`)) { window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit); window.currentUnit = "all"; window.saveUserData(); window.closeManageModal(); } };
+        window.deleteCurrentUnit = function() { if (confirm(`確定刪除整個「${window.currentUnit}」？`)) { window.vocabulary = window.vocabulary.filter(v => v.unit !== window.currentUnit); window.currentUnit = "all"; window.saveUserData(); window.closeManageModal(); } };
         window.openEditFromCard = function(e) { e.stopPropagation(); const list = getVisibleList(); if(list.length > 0) window.quickEdit(list[window.currentIndex % list.length].id); };
         function getVisibleList() { let list = window.vocabulary; if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); return list.filter(v => v.visible); }
+        function getFilteredList() { let list = window.vocabulary; if (window.currentUnit !== "all") list = list.filter(v => v.unit === window.currentUnit); return list; }
         function updateUnitSelector() { const s = document.getElementById('unit-nav-selector'); const units = [...new Set(window.vocabulary.map(v => v.unit))]; s.innerHTML = '<option value="all">📚 所有單元</option>'; units.forEach(u => s.innerHTML += `<option value="${u}">📖 ${u}</option>`); s.value = window.currentUnit; }
+        function renderFolderBar() {}
         window.toggleStar = function() { const list = getVisibleList(); if (list.length > 0) { const item = list[window.currentIndex % list.length]; item.starred = !item.starred; window.saveUserData(); window.updateUI(); } };
-        window.startQuiz = function() { alert("功能開發中"); };
     </script>
 </body>
 </html>
